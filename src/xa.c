@@ -25,7 +25,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 /* macros */
 #include "xad.h"
@@ -53,7 +55,7 @@
 #define ANZWARN		8
 
 #define programname	"xa"
-#define progversion	"v2.3.2"
+#define progversion	"v2.3.3"
 #define authors		"Written by Andre Fachat, Jolse Maginnis, David Weinehall and Cameron Kaiser"
 #define copyright	"Copyright (C) 1989-2007 Andre Fachat, Jolse Maginnis, David Weinehall\nand Cameron Kaiser."
 

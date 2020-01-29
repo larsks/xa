@@ -3,6 +3,9 @@
 CC = gcc
 LD = gcc
 CFLAGS = -O2 -W -Wall -pedantic -ansi
+LDFLAGS = -lc
+
+# for DOS?
 # CC = gcc-go32
 # LD = gcc-go32
 # CFLAGS = -W -Wall -pedantic 
@@ -33,10 +36,14 @@ uncpk:
 	(cd misc && CC="${CC} ${CFLAGS}" ${MAKE})
 
 dos: clean
-	(cd src && LD=gcc-go32 CC="gcc-go32 -W -Wall -pedantic" ${MAKE})
-	(cd misc && CC="gcc-go32 -W -Wall -pedantic" ${MAKE})
+	(cd src && LD=gcc-go32 CC=gcc-go32 CFLAGS="-W -Wall -pedantic" ${MAKE})
+	(cd misc && CC=gcc-go32 CFLAGS="-W -Wall -pedantic" ${MAKE})
 	rm -f xa file65 ldo65 uncpk printcbm reloc65 mkrom.sh src/*.o
 
+mingw: clean
+	(cd src && LD=${LD} CC=${CC} CFLAGS="${CFLAGS}" LDFLAGS="" ${MAKE})
+	(cd misc && LD=${LD} CC=${CC} CFLAGS="${CFLAGS}" LDFLAGS="" ${MAKE})
+	
 clean:
 	(cd src && ${MAKE} clean)
 	(cd loader && ${MAKE} clean)
@@ -51,4 +58,4 @@ install: xa uncpk
 	#$(MKDIR) $(DOCDIR)/xa65
 
 dist: clean
-	cd .. ; tar cvf xa-2.3.2.tar xa-2.3.2 ; gzip xa-2.3.2.tar
+	cd .. ; tar cvf xa-2.3.3.tar xa-2.3.3 ; gzip xa-2.3.3.tar

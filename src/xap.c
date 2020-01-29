@@ -24,7 +24,9 @@
 #include  <stdlib.h>
 #include  <ctype.h>
 #include  <string.h>
+#ifndef _MSC_VER
 #include  <strings.h>
+#endif
 
 #include  "xad.h"
 #include  "xah.h"
@@ -895,7 +897,7 @@ int pgetline(char *t)
 	}
 
      /* handle the double-slash comment (like in C++) */
-     p = index(in_line, '/');
+     p = strchr(in_line, '/');
      if (p != NULL) {
 	if (p[1] == '/') {
 	    *p = 0;	/* terminate string */

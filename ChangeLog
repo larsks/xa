@@ -268,3 +268,9 @@ xa-2.3.2
 
  -- Cameron Kaiser <ckaiser@floodgap.com> 13 Jan, 2007
 
+xa-2.3.3
+
+  * Compatibility update for Microsoft Visual Studio and mingw/MSYS (thanks
+    Fabian Nunez and Mikkel Holm Olsen).
+
+ -- Cameron Kaiser <ckaiser@floodgap.com> 15 May, 2007

@@ -3,14 +3,17 @@ derivatives). xa is a small, fast, portable two-pass assembler that compiles
 under most ANSI C compilers. It is distributed under the GNU Public License
 (see COPYING).
 
-The current version is 2.3.2, which implements several bug fixes over 2.3.0.
+The current version is 2.3.3, which implements several compatibility
+improvements on 2.3.2, a bug fix to the 2.3.0 version.
+
 2.3.0 itself features many compatibility improvements and new man-based
 documentation. It also completed the merge of the 65816 and 6502/R65C02
 versions and thus the current xa can generate code for all targets now.
 
 To install on a generic Unixy thing, you should be able to just type
 
-	% make
+	% make # to build the executable, and if it works ...
+	% make install # to install man pages and binaries into the system
 
 This will create xa along with its various support utilities. Try assembling
 the cpk depacker in examples/ as a test. xa also comes with uncpk (a program
@@ -28,6 +31,13 @@ DOS compilation is still supported with the GO32 package. You should just be
 able to type
 
 	C:\> make dos
+
+In addition, there are compatibility updates to allow it to compile under
+Microsoft Visual Studio and mingw. It should compile under VS2005 as written;
+look in the vstudio directory for solution and project files provided by
+Fabian Nunez. For mingw, use
+
+	make mingw
 
 Similarly, Amiga and Atari ST compilation should still also function with
 their particular compatible packages.
