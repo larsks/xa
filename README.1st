@@ -1,5 +1,6 @@
 --------------------------------------------------------------------------
 This is the README file for the package 'xa', written by A.Fachat. 
+(with 65816 extensions by Jolse Maginnis)
 
 The package 'xa' is provided 'as is', no warranty will be taken
 for any damage caused by it or by any use of it.
@@ -71,8 +72,10 @@ The docs are in the 'doc' subdir. There also is a description of the
 expressed in a better way, feel free and mail me to improve my english ;-)
 
 For further information:
-
          Andre Fachat
          email: a.fachat@physik.tu-chemnitz.de
 
+65816 opcodes:
+ 	 Jolse Maginnis
+	 email: jmaginni@postoffice.utas.edu.au
 

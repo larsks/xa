@@ -179,8 +179,8 @@ static int ct[Lastbef+1][Admodes] ={
 {     0x11a,0xe6,0xf6,-1,  -1,  -1,  -1,  -1,  0xee,0xfe,-1,  -1, -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1 },  /*inc*/
 {     0xe8,-1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1 },  /*inx*/
 {     0xc8,-1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1 },  /*iny*/
-{     -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  0x4c,-1,  -1,  -1, 0x6c,0x17c,-1,  -1,  -1,0x25c, -1,  -1,  -1,  -1,  -1,0x2dc},  /*jmp*/
-{     -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  0x20,-1,  -1,  -1,  -1, 0x2fc,-1,  -1,  -1,0x222, -1,  -1,  -1,  -1,  -1,  -1 },  /*jsr*/
+{     -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  0x4c,-1,  -1,  -1, 0x6c,0x17c,-1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,0x2dc},  /*jmp*/
+{     -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  0x20,-1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1 },  /*jsr*/
 {     -1,  0xa5,0xb5,-1, 0x1b2,0xa1,0xb1,0x4a9,0xad,0xbd,0xb9,-1, -1,  -1,  -1,  -1,-1,0x2af,0x2bf,0x2a3,0x2b3,0x2a7,0x2b7,-1 },  /*lda*/
 {     -1,  0xa6,-1,  0xb6,-1,  -1,  -1, 0x8a2,0xae,-1,  0xbe,-1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1 },  /*ldx*/
 {     -1,  0xa4,0xb4,-1,  -1,  -1,  -1, 0x8a0,0xac,0xbc,-1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1 },  /*ldy*/
@@ -554,14 +554,7 @@ printf(" wrote %02x %02x %02x %02x %02x %02x\n",
                          }
                     }
                }
-
-               if (t[l-1]!='@')
-               {
-                    if(bl && !er && opt[am]>=0 && am>16)
-                         if(ct[n][opt[am]]>=0)
-                              am=opt[am];
-               }
-
+          
                if(!bl)
                     er=E_SYNTAX;
                else {
@@ -998,14 +991,14 @@ int t_p2(signed char *t, int *ll, int fl, int *al)
                     }
                }
 
-               if (t[*ll-1]!='@')
+               if (t[MAXLINE-1]!='@')
                {
-                    if(bl && !er && !(vv[0]&0xff0000) && opt[am]>=0 && am>16)
+                    if(fl && bl && !er && !(vv[0]&0xff0000) && opt[am]>=0 && am>16)
                          if(ct[n][opt[am]]>=0)
                               am=opt[am];
 
-                    if(t[*ll-1]!='!') {
-                         if(bl && !er && !(vv[0]&0xffff00) && opt[am]>=0)
+                    if(t[MAXLINE-1]!='!') {
+                         if(fl && bl && !er && !(vv[0]&0xffff00) && opt[am]>=0)
                               if(ct[n][opt[am]]>=0)
                                    am=opt[am];
                     }
@@ -1147,7 +1140,6 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
 {
      static int p,q,ud,n,v,ll,mk,er,f;
      static int operand,o,fl,afl;
-     static unsigned char cast;
 
      *nk=0;         /* Anzahl Komma               */
      *na1=0;        /* Anzahl "asc-texte"         */
@@ -1164,7 +1156,7 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
      while(s[p]==' ') p++;
 
      n=T_END;
-     cast='\0';
+     t[MAXLINE-1]='\0';
 
      if(!af)
      {
@@ -1249,7 +1241,7 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                  {
                     if(s[p]=='!' || s[p]=='@')
                     {
-                      cast=s[p];
+                      t[MAXLINE-1]=s[p];
                       operand= -operand+1;
                       p++;
                     } else
@@ -1444,9 +1436,8 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
           if(ud)
                er=E_NODEF;
      }
-     t[q++]='\0';
-     t[q++]=cast;
      *l=q;
+
      return(er);
 }
 
