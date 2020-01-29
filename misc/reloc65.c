@@ -1,23 +1,22 @@
-
-/*
-    xa65 - 6502 cross assembler and utility suite
-    reloc65 - relocates 'o65' files 
-    Copyright (C) 1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+/* reloc65 -- A part of xa65 - 65xx/65816 cross-assembler and utility suite
+ * o65 file relocator
+ *
+ * Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +25,14 @@
 #include <errno.h>
 #include <string.h>
 
+#include "version.h"
+
 #define	BUF	(9*2+8)		/* 16 bit header */
+
+#define programname	"reloc65"
+#define progversion	"v0.2.1"
+#define author		"Written by André Fachat"
+#define copyright	"Copyright (C) 1997-2002 André Fachat."
 
 typedef struct {
 	char 		*fname;
@@ -51,40 +57,51 @@ unsigned char *reloc_globals(unsigned char *, file65 *fp);
 file65 file;
 unsigned char cmp[] = { 1, 0, 'o', '6', '5' };
 
-void usage(void) {
-	printf("reloc65: relocates 'o65' files\n"
-		"  reloc65 [options] [filenames...]\n"
-		"options:\n"
-		"  -v        = print version number\n"
-		"  -h, -?    = print this help\n"
-		"  -b? adr   = relocates segment '?' (i.e. 't' for text segment,\n"
-		"              'd' for data, 'b' for bss and 'z' for zeropage) to the new\n"
-		"              address 'adr'.\n"
-		"  -o file   = uses 'file' as output file. otherwise write to 'a.o65'.\n"
-		"  -x?       = extracts text '?'='t' or data '?'='d' segment from file\n"
-		"              instead of writing back the whole file\n"
-	);
-	exit(0);
+void usage(FILE *fp)
+{
+	fprintf(fp,
+		"Usage: %s [OPTION]... [FILE]...\n"
+		"Relocator for o65 object files\n"
+		"\n"
+		"  -b? addr   relocates segment '?' (i.e. 't' for text segment,\n"
+		"               'd' for data, 'b' for bss and 'z' for zeropage) to the new\n"
+		"               address `addr'\n"
+		"  -o file    uses `file' as output file. Default is `a.o65'\n"
+		"  -x?        extracts text `?' = `t' or data `?' = `d' segment from file\n"
+		"               instead of writing back the whole file\n"
+		"  --version  output version information and exit\n"
+		"  --help     display this help and exit\n",
+		programname);
 }
 
 int main(int argc, char *argv[]) {
 	int i = 1, mode, hlen;
 	size_t n;
 	FILE *fp;
-	int tflag=0, dflag=0, bflag=0, zflag=0;
-	int tbase, dbase, bbase, zbase;
+	int tflag = 0, dflag = 0, bflag = 0, zflag = 0;
+	int tbase = 0, dbase = 0, bbase = 0, zbase = 0;
 	char *outfile = "a.o65";
 	int extract = 0;
 
- 	if(argc<=1) usage();
+	if (argc <= 1) {
+	  usage(stderr);
+	  exit(1);
+	}
+
+	if (strstr(argv[1], "--help")) {
+          usage(stdout);
+	  exit(0);
+	}
+
+	if (strstr(argv[1], "--version")) {
+          version(programname, progversion, author, copyright);
+	  exit(0);
+	}
 
 	while(i<argc) {
 	  if(argv[i][0]=='-') {
 	    /* process options */
 	    switch(argv[i][1]) {
-	    case 'v':
-		printf("reloc65 version 0.2 (c) 1997 a.fachat\n");
-		break;
 	    case 'o':
 		if(argv[i][2]) outfile=argv[i]+2;
 		else outfile=argv[++i];
@@ -133,9 +150,6 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 		break;
-	    case 'h':
-	    case '?':
-		usage();
 	    default:
 		fprintf(stderr,"reloc65: %s unknown option, use '-?' for help\n",argv[i]);
 		break;

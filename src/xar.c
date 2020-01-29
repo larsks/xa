@@ -1,27 +1,28 @@
-
-/*
-    xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
-
+/* xa65 - 65xx/65816 cross-assembler and utility suite
+ *
+ * Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ *
+ * Relocation module (for relocatable objects)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "xad.h"
 #include "xah.h"
 #include "xar.h"
 #include "xa.h"
@@ -249,9 +250,6 @@ void seg_end(FILE *fpout) {
         rd_write(fpout, afile->base[SEG_DATA]-1);
         l_write(fpout);
 }
-
-#define fputw(a,fp)     fputc((a)&255,fp);fputc((a>>8)&255,fp)
-
 
 /* write header for relocatable output format */
 int h_write(FILE *fp, int mode, int tlen, int dlen, int blen, int zlen, 

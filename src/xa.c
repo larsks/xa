@@ -1,86 +1,94 @@
+/* xa65 - 65xx/65816 cross-assembler and utility suite
+ *
+ * Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ * maintained by Cameron Kaiser (ckaiser@floodgap.com)
+ *
+ * Main program
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
-/*
-    xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
-
-
+#include <time.h>
 #include <ctype.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <time.h>
+
+/* macros */
+#include "xad.h"
 
 /* structs and defs */
-
 #include "xah.h"
 #include "xah2.h"
 
 /* exported functions are defined here */
-
-#include "xar.h"
 #include "xa.h"
-#include "xam.h"
 #include "xal.h"
-#include "xap.h"
-#include "xat.h"
+#include "xam.h"
 #include "xao.h"
+#include "xap.h"
+#include "xar.h"
+#include "xat.h"
+
+#include "version.h"
+
+/* ANZERR: total number in ertxt[]
+   ANZERR-ANZWARN-1: first index to non-fatal warnings */
+
+#define ANZERR		32
+#define ANZWARN		7
+
+#define programname	"xa"
+#define progversion	"v2.3.0"
+#define authors		"Written by Andre Fachat, Jolse Maginnis, David Weinehall and Cameron Kaiser"
+#define copyright	"Copyright (C) 1997-2006 Andre Fachat, Jolse Maginnis, David Weinehall\nand Cameron Kaiser."
 
 /* exported globals */
-
-int ncmos,cmosfl,w65816,n65816;
+int ncmos, cmosfl, w65816, n65816;
 int masm = 0;
 int nolink = 0;
 int romable = 0;
-int romadr = 0;
+int romaddr = 0;
 int noglob = 0;
 int showblk = 0;
 int crossref = 0;
 
 /* local variables */
-
-static const char *copyright={
-"Cross-Assembler 65xx V2.1.4h 12dec1998 (c) 1989-98 by A.Fachat\n"
-"65816 opcodes and modes coded by Jolse Maginnis V2.0\n"};
-
 static char out[MAXLINE];
-static time_t tim1,tim2;
-static FILE *fpout,*fperr,*fplab;
+static time_t tim1, tim2;
+static FILE *fpout, *fperr, *fplab;
 static int ner = 0;
 
 static int align = 1;
 
 static void printstat(void);
-static void usage(int);
-static int  setfext(char*,char*);
-static int  x_init(void);
-static int  pass1(void);
-static int  pass2(void);
-static int  puttmp(int);
-static int  puttmps(signed char*,int);
+static void usage(int, FILE *);
+static int setfext(char *, char *);
+static int x_init(void);
+static int pass1(void);
+static int pass2(void);
+static int puttmp(int);
+static int puttmps(signed char *, int);
 static void chrput(int);
-static int  getline(char*);
+static int getline(char *);
 static void lineout(void);
 static long ga_p1(void);
 static long gm_p1(void);
 
 /* text */
-
 int memode,xmode;
 int segment;
 int tlen=0, tbase=0x1000;
@@ -139,12 +147,21 @@ int main(int argc,char *argv[])
 
      afile = alloc_file();
 
-     if(argc<=1)
-     {
-          usage(w65816);
-          return(1);
+     if (argc <= 1) {
+          usage(w65816, stderr);
+          exit(1);
      }
-     
+
+     if (strstr(argv[1], "--help")) {
+          usage(w65816, stdout);
+	  exit(0);
+     }
+
+     if (strstr(argv[1], "--version")) {
+          version(programname, progversion, authors, copyright);
+	  exit(0);
+     }
+
      ofile="a.o65";
      efile=NULL;
      lfile=NULL;
@@ -162,19 +179,18 @@ int main(int argc,char *argv[])
        return 1;
      }
 
- 
      i=1;
      while(i<argc) {
 	if(argv[i][0]=='-') {
 	  switch(argv[i][1]) {
 	  case 'M':
-	   	masm = 1;	/* MASM compatibility mode */
+		masm = 1;	/* MASM compatibility mode */
 		break;
 	  case 'A':		/* make text segment start so that text relocation
 				   is not necessary when _file_ starts at adr */
 		romable = 2;
-		if(argv[i][2]==0) romadr = atoi(argv[++i]);
-		else romadr = atoi(argv[i]+2);
+		if(argv[i][2]==0) romaddr = atoi(argv[++i]);
+		else romaddr = atoi(argv[i]+2);
 		break;
 	  case 'G':
 		noglob = 1;
@@ -186,7 +202,7 @@ int main(int argc,char *argv[])
 		crossref = 1;
 		break;
 	  case 'R':
-		relmode = 1; 
+		relmode = 1;
 		break;
 	  case 'D':
 		s = (signed char*)strstr(argv[i]+2,"=");
@@ -198,7 +214,7 @@ int main(int argc,char *argv[])
 		fmode |= FM_OBJ;
 		break;
 	  case 'v':
-		verbose = 1; 
+		verbose = 1;
 		break;
 	  case 'C':
 		cmosfl = 0;
@@ -244,7 +260,7 @@ int main(int argc,char *argv[])
 		}
 		break;
 	  case 'b':			/* set segment base addresses */
-		switch(argv[i][2]) {	
+		switch(argv[i][2]) {
 		case 't':
 			if(argv[i][3]==0) tbase = atoi(argv[++i]);
 			else tbase = atoi(argv[i]+3);
@@ -315,7 +331,7 @@ int main(int argc,char *argv[])
 	exit(1);
      }
 
-     if(verbose) fprintf(stderr, "%s",copyright);
+     if(verbose) fprintf(stderr, "%s\n",copyright);
 
      if(1 /*!m_init()*/)
      {
@@ -327,7 +343,7 @@ int main(int argc,char *argv[])
            {
              if(!x_init())
              {
-	       if(fperr) fprintf(fperr,"%s",copyright);
+	       if(fperr) fprintf(fperr,"%s\n",copyright);
 	       if(verbose) logout(ctime(&tim1));
 
 	       /* Pass 1 */
@@ -470,8 +486,6 @@ static void printstat(void)
 	sprintf(out," %8ld seconds used\n",(long)difftime(tim2,tim1)); logout(out);
 }
 
-#define	fputw(a,fp)	fputc((a)&255,fp);fputc((a>>8)&255,fp)
-
 int h_length(void) {
 	return 26+o_length();
 }
@@ -544,10 +558,6 @@ static long gm_p1(void)
 	return(TMPMEM);
 }
 
-#ifndef abs
-#define abs(a) ((a)>=0 ? a : -a)
-#endif
-
 static int pass2(void)
 {
      int c,er,l,ll,i,al;
@@ -597,7 +607,8 @@ static int pass2(void)
                }
           } else
           {
-               er=t_p2(afile->mn.tmp+afile->mn.tmpe,&ll,0,&al);
+/* do not attempt address mode optimization on pass 2 */
+               er=t_p2(afile->mn.tmp+afile->mn.tmpe,&ll,1,&al);
           
                if(er==E_NOLINE)
                {
@@ -643,12 +654,16 @@ static int pass2(void)
 static int pass1(void)
 {
      signed char o[MAXLINE];
-     int l,er, al;
+     int l,er,temp_er,al;
 
      memode=0;
      xmode=0;
      tlen=0;
      ner=0;
+
+	temp_er = 0;
+
+/*FIXIT*/
      while(!(er=getline(s)))
      {         
           er=t_p1((signed char*)s,o,&l,&al);
@@ -660,7 +675,7 @@ static int pass1(void)
 	    case SEG_ZERO: zlen += al; break;
 	  }
 
-          /*printf(": er= %d, l=%d, tmpz=%d\n",er,l,tmpz);*/
+          /*printf(": er= %d, l=%d, tmpz=%d\n",er,l,tmpz); */
 
           if(l)
           {
@@ -702,46 +717,48 @@ static int pass1(void)
      return(ner);
 }
 
-
-static void usage(int default816)
+static void usage(int default816, FILE *fp)
 {
-     fprintf(stderr, "%s",copyright);
-     fprintf(stderr, "usage : xa { option | sourcefile }\n"
-	    "options:\n"
-	    " -v          = verbose output\n"
-	    " -x          = old filename behaviour (overrides -o, -e, -l)\n"
-            " -C          = no CMOS-opcodes\n"
-            " -W          = no 65816-opcodes%s\n"
-            " -w          = allow 65816-opcodes%s\n"
-            " -B          = show lines with block open/close\n"
-            " -c          = produce o65 object instead of executable files (i.e. do not link)\n"
-	    " -o filename = sets output filename, default is 'a.o65'\n"
-	    "               A filename of '-' sets stdout as output file\n"
-	    " -e filename = sets errorlog filename, default is none\n"
-	    " -l filename = sets labellist filename, default is none\n"
-	    " -r          = adds crossreference list to labellist (if -l given)\n"
-	    " -M          = allow \":\" to appear in comments, for MASM compatibility\n"
-	    " -R          = start assembler in relocating mode\n"
-	    " -Llabel     = defines 'label' as absolute, undefined label even when linking\n"
-	    " -b? adr     = set segment base address to integer value adr. \n"
-	    "               '?' stands for t(ext), d(ata), b(ss) and z(ero) segment\n"
-            "               (address can be given more than once, latest is taken)\n"
-	    " -A adr      = make text segment start at an address that when the _file_\n"
-	    "               starts at adr, relocation is not necessary. Overrides -bt\n"
-	    "               Other segments have to be take care of with -b?\n"
- 	    " -G          = suppress list of exported globals\n"
-	    " -DDEF=TEXT  = defines a preprocessor replacement\n"
-	    " -Idir      = add directory 'dir' to include path (before XAINPUT)\n"
-            "Environment:\n"
-            " XAINPUT = include file path; components divided by ','\n"
-            " XAOUTPUT= output file path\n",
+     fprintf(fp,
+	    "Usage: %s [options] file\n"
+	    "Cross-assembler for 65xx/R65C02/65816\n"
+	    "\n",
+            programname);
+	fprintf(fp,
+	    " -v           verbose output\n"
+	    " -x           old filename behaviour (overrides `-o', `-e', `-l')\n"
+            " -C           no CMOS-opcodes\n"
+            " -W           no 65816-opcodes%s\n"
+            " -w           allow 65816-opcodes%s\n",
 	    default816 ? "" : " (default)",
-	    default816 ? " (default)" : ""
-	);
+	    default816 ? " (default)" : "");
+	fprintf(fp,
+            " -B           show lines with block open/close\n"
+            " -c           produce `o65' object instead of executable files (i.e. don't link)\n"
+	    " -o filename  sets output filename, default is `a.o65'\n"
+	    "                A filename of `-' sets stdout as output file\n");
+	fprintf(fp,
+	    " -e filename  sets errorlog filename, default is none\n"
+	    " -l filename  sets labellist filename, default is none\n"
+	    " -r           adds crossreference list to labellist (if `-l' given)\n"
+	    " -M           allow ``:'' to appear in comments for MASM compatibility\n"
+	    " -R           start assembler in relocating mode\n");
+	fprintf(fp,
+	    " -Llabel      defines `label' as absolute, undefined label even when linking\n"
+	    " -b? addr     set segment base address to integer value addr\n"
+	    "                `?' stands for t(ext), d(ata), b(ss) and z(ero) segment\n"
+	    "                (address can be given more than once, last one is used)\n");
+	fprintf(fp,
+	    " -A addr      make text segment start at an address that when the _file_\n"
+	    "                starts at addr, relocation is not necessary. Overrides -bt\n"
+	    "                Other segments must be specified with `-b?'\n"
+	    " -G           suppress list of exported globals\n");
+	fprintf(fp,
+	    " -DDEF=TEXT   defines a preprocessor replacement\n"
+	    " -Idir        add directory `dir' to include path (before XAINPUT)\n"
+	    "  --version   output version information and exit\n"
+	    "  --help      display this help and exit\n");
 }
-
-#define   ANZERR    31
-#define   ANZWARN   6
 
 /*
 static char *ertxt[] = { "Syntax","Label definiert",
@@ -760,7 +777,7 @@ static char *ertxt[] = { "Syntax","Label defined",
           "Wrong addressing mode","Branch out of range",
           "Overflow","Division by zero","Pseudo-opcode expected",
           "Block stack overflow","file not found",
-          "End of file","Too many block close",
+          "End of file","Unmatched block close",
           "NoBlk","NoKey","NoLine","OKDef","DSB","NewLine",
           "NewFile","CMOS-Befehl","pp:Wrong parameter count",
 	  "Illegal pointer arithmetic", "Illegal segment",
@@ -774,7 +791,9 @@ static char *ertxt[] = { "Syntax","Label defined",
 	  "Illegal pointer arithmetic",
 	  "Address access to low or high byte pointer",
 	  "High byte access to low byte pointer",
-	  "Low byte access to high byte pointer" };
+	  "Low byte access to high byte pointer",
+	  "Can't optimize forward-defined label; using absolute addressing",
+ };
 
 static int gl;
 static int gf;  
@@ -823,6 +842,7 @@ static char l[MAXLINE];
 static int getline(char *s)
 {
      static int ec;
+
      static int i,c;
      int hkfl,j;
 
@@ -847,8 +867,10 @@ static int getline(char *s)
                     puttmp(T_LINE);
                     puttmp((filep->fline)&255);
                     puttmp(((filep->fline)>>8)&255);
-                    ec=E_OK;
-               } else
+		ec=E_OK;
+
+               }
+		else
                if(ec==E_NEWFILE)
                {
                     puttmp(0);
@@ -866,7 +888,7 @@ static int getline(char *s)
      }
 
      gl=0;
-     if(!ec)
+     if(!ec || ec==E_EOF)
      {
           do {
                c=s[j]=l[i++];

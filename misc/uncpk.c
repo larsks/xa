@@ -1,50 +1,79 @@
-/*
-    xa65 - 6502 cross assembler and utility suite
-    uncpk - handle cpk archive files
-    Copyright (C) 1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+/* reloc65 -- A part of xa65 - 65xx/65816 cross-assembler and utility suite
+ * Pack/Unpack cpk archive files
+ *
+ * Copyright (C) 1989-2002 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define max(a,b)	(((a)>(b))?(a):(b))
-#define min(a,b)	(((a)<(b))?(a):(b))
+#include "version.h"
+
+#define max(a, b)	(a > b) ? a : b
+#define min(a, b)	(a < b) ? a : b
+
+#define programname	"uncpk"
+#define progversion	"v0.2.1"
+#define author		"Written by André Fachat"
+#define copyright	"Copyright (C) 1997-2002 André Fachat."
 
 FILE *fp;
 char name[100];
 char *s;
 
-void usage(int er) {
-	printf("uncpk: handle c64 archives\n"
-	       "  uncpk [x|l][v] archive-name\n"
-	       "  uncpk [a|c][v] archive-name file1 [file2 [file3 ...]]\n");
-	exit(er);
+void usage(FILE *fp)
+{
+	fprintf(fp,
+		"Usage: %s [OPTION]... [FILE]...\n"
+		"Manage c64 cpk archives\n"
+		"\n"
+		"  c             create an archive\n"
+		"  a             add a file to an archive\n"
+		"  x             extract archive\n"
+		"  l             list contents of archive\n"
+		"  v             verbose output\n"
+		"     --version  output version information and exit\n"
+		"     --help     display this help and exit\n",
+		programname);
 }
 
 int list=0,verbose=0,add=0,create=0;
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[])
+{
 	int i,c,c2,fileok, nc;
 	size_t n,n2;
 	FILE *fp,*fpo=NULL;
 
-	if(argc<=1) {
-	  usage(1);
-	}	
+	if (argc <= 1) {
+	  usage(stderr);
+	  exit(1);
+	}
+
+	if (strstr(argv[1], "--help")) {
+          usage(stdout);
+	  exit(0);
+	}
+
+	if (strstr(argv[1], "--version")) {
+          version(programname, progversion, author, copyright);
+	  exit(0);
+	}
 
 	if(strchr(argv[1],(int)'l')) {
 	  list=1;
@@ -60,8 +89,9 @@ int main(int argc, char *argv[]){
 	}
 
 	if(add||create) {
-	 if (argc<=3) {
-	   usage(1);
+	 if (argc <= 3) {
+	   usage(stderr);
+	   exit(1);
 	 }
 	 if(add) {
 	   fpo=fopen(argv[2],"ab");
@@ -105,10 +135,11 @@ int main(int argc, char *argv[]){
 	   fclose(fpo);
 	 } else {
 	   fprintf(stderr,"Couldn't open file '%s' for writing!",argv[1]);
-	 } 
+	 }
 	} else {
-	 if (argc!=3) {
- 	   usage(1);
+	 if (argc != 3) {
+	   usage(stderr);
+	   exit(1);
 	 }
 	 fp=fopen(argv[2],"rb");
 	 if(fp){

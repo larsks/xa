@@ -1,19 +1,50 @@
---------------------------------------------------------------------------
-This is the README file for the package 'xa', written by A.Fachat. 
+This is the readme for xa, a cross-assembler for the 6502 and 65816 CPUs (and
+derivatives). xa is a small, fast, portable two-pass assembler that compiles
+under most ANSI C compilers. It is distributed under the GNU Public License
+(see COPYING).
 
-The package 'xa' is provided 'as is', no warranty will be taken
-for any damage caused by it or by any use of it.
+The current version is 2.3.0, which implements several bug fixes, compatibility
+improvements and new man-based documentation. It also completes the merge of
+the 65816 and 6502/R65C02 versions and can generate code for all targets now.
 
-The package contains the source code for the Cross assembler 'xa', several
-utilities in the 'misc' subdirectory, as well as example programs and
-the rest of this directory tree. As of release 2.1.4f a gcc-go32 DOS
-cross-compiling make option is included.
+To install on a generic Unixy thing, you should be able to just type
 
-The current version for 'xa' is 2.1.4f, as of 03mar1998
+	% make
 
-The whole package is placed under the GNU Public License, for further
-information on redistribution see the included file "COPYING".
---------------------------------------------------------------------------
+This will create xa along with its various support utilities. Try assembling
+the cpk depacker in examples/ as a test. xa also comes with uncpk (a program
+for generating cpk archives) and printcbm (a program for listing Commodore
+BASIC test) and file65, ld65 and reloc65 for displaying, linking and
+relocating o65 files in Andre's relocatable format (see doc/fileformats.txt).
+The loader/ directory also has goodies for managing relocatable binaries.
+
+Don't forget the man pages in man/. Install these into your MANPATH at your
+leisure, or read them with nroff -man (and/or groff -man).
+
+xa is no longer broadly supported outside of Unix due to my inability to test
+it, but has nothing that should impair it from compiling elsewhere. To wit,
+DOS compilation is still supported with the GO32 package. You should just be
+able to type
+
+	C:\> make dos
+
+Similarly, Amiga and Atari ST compilation should still also function with
+their particular compatible packages.
+
+xa has a companion disassembler, the dxa package. dxa is not included in the
+standard xa distribution, but can be downloaded from the xa home page at
+
+	http://www.floodgap.com/retrotech/xa/
+
+Please check by periodically for the latest version of both packages.
+
+xa was originally written and maintained by Andre Fachat. The current version
+is maintained by Cameron Kaiser.
+
+Please send me your comments at ckaiser@floodgap.com -- Andre's original
+readme follows and applies generally to the present version.
+
+-------------------------------------------------------------------------------
 
 XA is a 6502 cross compiler:
 
@@ -69,10 +100,7 @@ as needed.
 The docs are in the 'doc' subdir. There also is a description of the
 6502 relocatable binary format. If you think some things could be 
 expressed in a better way, feel free and mail me to improve my english ;-)
+[ The documentation is now maintained in man(1) format in man/ . -- CK ]
 
-For further information:
-
-         Andre Fachat
-         email: a.fachat@physik.tu-chemnitz.de
-
+Andre
 

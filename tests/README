@@ -1,0 +1,10 @@
+This is a directory of test suites for complex or pathological cases that
+have been repaired (?) in the current version. It is primarily for internal
+testing, but is here for your interest.
+
+adrm/	Addressing mode test (especially the optimizer and quantity prefixes)
+nonl/	Patryk's no-new-line-on-last-line cases ;)
+fordef/	Optimizer warnings for forward defined labels, new in 2.3.0
+
+Cameron Kaiser
+

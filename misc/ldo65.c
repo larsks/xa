@@ -1,41 +1,49 @@
+/* ldo65 -- A part of xa65 - 65xx/65816 cross-assembler and utility suite
+ * o65 relocatable object file linker
+ *
+ * A part of the xa65 - 65xx/65816 cross-assembler and utility suite
+ *
+ * Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
-/*
-    xa65 - 6502 cross assembler and utility suite
-    ld65 - o65 relocatable object file linker
-    Copyright (C) 1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
-
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+#include "version.h"
 
 #define	BUF	(9*2+8)		/* 16 bit header */
 
+#define programname	"ldo65"
+#define progversion	"v0.1.1"
+#define author		"Written by André Fachat"
+#define copyright	"Copyright (C) 1997-2002 André Fachat. Formerly ld65."
+
 typedef struct {
-	char 	*name;
+	char	*name;
 	int	len;
 } undefs;
 
 typedef struct {
-	char 		*fname;
-	size_t 		fsize;
+	char		*fname;
+	size_t		fsize;
 	unsigned char	*buf;
 	int		tbase, tlen, dbase, dlen, bbase, blen, zbase, zlen;
 	int		tdiff, ddiff, bdiff, zdiff;
@@ -70,19 +78,20 @@ file65 file;
 unsigned char cmp[] = { 1, 0, 'o', '6', '5' };
 unsigned char hdr[26] = { 1, 0, 'o', '6', '5', 0 };
 
-void usage(void) {
-	printf("ld65: link 'o65' files\n"
-		"  ld65 [options] [filenames...]\n"
-		"options:\n"
-		"  -v        = print version number\n"
-		"  -h, -?    = print this help\n"
-		"  -b? adr   = relocates segment '?' (i.e. 't' for text segment,\n"
-		"              'd' for data, 'b' for bss and 'z' for zeropage) to the new\n"
-		"              address 'adr'.\n"
-		"  -o file   = uses 'file' as output file. otherwise write to 'a.o65'.\n"
-		"  -G        = suppress writing of globals\n"
-	);
-	exit(0);
+void usage(FILE *fp)
+{
+	fprintf(fp,
+		"Usage: %s [OPTION]... [FILE]...\n"
+		"Linker for o65 object files\n"
+		"\n"
+		"  -b? addr   relocates segment `?' (i.e. `t' for text segment,\n"
+		"               `d' for data, `b' for bss, and `z' for zeropage) to the new\n"
+		"               address `addr'\n"
+		"  -o file    uses `file' as output file. Default is `a.o65'\n"
+		"  -G         suppress writing of globals\n"
+		"  --version  output version information and exit\n"
+		"  --help     display this help and exit\n",
+		programname);
 }
 
 int main(int argc, char *argv[]) {
@@ -95,15 +104,25 @@ int main(int argc, char *argv[]) {
 	file65 *file, **fp = NULL;
 	FILE *fd;
 
- 	if(argc<=1) usage();
+	if (argc <= 1) {
+		usage(stderr);
+		exit(1);
+	}
+
+	if (strstr(argv[1], "--help")) {
+          usage(stdout);
+	  exit(0);
+	}
+
+	if (strstr(argv[1], "--version")) {
+          version(programname, progversion, author, copyright);
+	  exit(0);
+	}
 
 	/* read options */
 	while(i<argc && argv[i][0]=='-') {
 	    /* process options */
 	    switch(argv[i][1]) {
-	    case 'v':
-		printf("reloc65 version 0.1 (c) 1997 a.fachat\n");
-		break;
 	    case 'G':
 		noglob=1;
 		break;
@@ -134,9 +153,6 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 		break;
-	    case 'h':
-	    case '?':
-		usage();
 	    default:
 		fprintf(stderr,"file65: %s unknown option, use '-?' for help\n",argv[i]);
 		break;
@@ -417,9 +433,9 @@ int g=0;
 int write_reloc(file65 *fp[], int nfp, FILE *f) {
 	int tpc, pc, i;
 	unsigned char *p;
-	int low, seg, typ, lab;
+	int low = 0, seg, typ, lab;
 
-	/* no undefined lables ? TODO */
+	/* no undefined labels ? TODO */
 	fputc(0,f);
 	fputc(0,f);
 
@@ -635,5 +651,3 @@ int reloc_seg(unsigned char *buf, int adr, int ri, int *lreloc, file65 *fp) {
 	*lreloc = adr;
 	return ++ri;
 }
-
-

@@ -1,29 +1,31 @@
+/* xa65 - 65xx/65816 cross-assembler and utility suite
+ *
+ * Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ * Maintained by Cameron Kaiser
+ *
+ * File handling and preprocessor (also see xaa.c) module
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
-/*
-    xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
-
- 
 #include  <stdio.h>
 #include  <stdlib.h>
 #include  <ctype.h>
 #include  <string.h>
 
+#include  "xad.h"
 #include  "xah.h"
 #include  "xah2.h"
 
@@ -34,24 +36,24 @@
 #include  "xat.h"
 #include  "xap.h"
 
-char 	  s[MAXLINE];
-Datei     *filep;
+char s[MAXLINE];
+Datei *filep;
 
 static int tcompare(char*,char**,int);
 static int pp_replace(char*,char*,int,int);
-static int suchdef(char*);
+static int searchdef(char*);
 static int fgetline(char*,int len, int *rlen, FILE*);
 
-#define   hashcode(n,l)  (n[0]&0x0f)|(((l-1)?(n[1]&0x0f):0)<<4)
-
-static int  icl_open(char*),pp_ifdef(char*),pp_ifndef(char*);
-static int  pp_else(char*),pp_endif(char*);
-static int  pp_echo(char*),pp_if(char*),pp_print(char*),pp_prdef(char*);
-static int  pp_ifldef(char*),pp_iflused(char*);
-static int  pp_undef(char*);
+static int icl_open(char*),pp_ifdef(char*),pp_ifndef(char*);
+static int pp_else(char*),pp_endif(char*);
+static int pp_echo(char*),pp_if(char*),pp_print(char*),pp_prdef(char*);
+static int pp_ifldef(char*),pp_iflused(char*);
+static int pp_undef(char*);
 
 #define   ANZBEF    13
 #define   VALBEF    6
+
+static int ungeteof = 0;
 
 static char *cmd[]={ "echo","include","define","undef","printdef","print",
 			"ifdef","ifndef","else","endif",
@@ -100,16 +102,16 @@ int pp_ifdef(char *t)
 {
 /*     int x;
      printf("t=%s\n",t);
-     x=suchdef(t);
-     printf("suchdef(t)=%d\n",x);
+     x=searchdef(t);
+     printf("searchdef(t)=%d\n",x);
 */   
-     loopfl=(loopfl<<1)+( suchdef(t) ? 0 : 1 );
+     loopfl=(loopfl<<1)+( searchdef(t) ? 0 : 1 );
      return(0);
 }
 
 int pp_ifndef(char *t)
 {
-     loopfl=(loopfl<<1)+( suchdef(t) ? 1 : 0 );
+     loopfl=(loopfl<<1)+( searchdef(t) ? 1 : 0 );
      return(0);
 }
 
@@ -122,7 +124,7 @@ int pp_ifldef(char *t)
 int pp_iflused(char *t)
 {
 	int n;
-	loopfl=(loopfl<<1)+( ll_such(t,&n) ? 1 : 0 );
+	loopfl=(loopfl<<1)+( ll_search(t,&n) ? 1 : 0 );
 	return(0);
 }
 
@@ -190,12 +192,14 @@ int pp_if(char *t)
 
 int pp_else(char *t)
 {
+     (void)t;		/* quench warning */
      loopfl ^=1;
      return(0);
 }
 
 int pp_endif(char *t)
 {
+     (void)t;		/* quench warning */
      loopfl=loopfl>>1;
      return(0);
 }
@@ -203,7 +207,7 @@ int pp_endif(char *t)
 /* pp_undef is a great hack to get it working fast... */
 int pp_undef(char *t) {
      int i;
-     if((i=suchdef(t))) {
+     if((i=searchdef(t))) {
 	i+=rlist;
 	liste[i].s_len=0;
      }
@@ -215,7 +219,7 @@ int pp_prdef(char *t)
      char *x;
      int i,j;
 
-     if((i=suchdef(t)))
+     if((i=searchdef(t)))
      {
           i+=rlist;
           x=liste[i].search;
@@ -235,7 +239,7 @@ int pp_prdef(char *t)
      return(E_OK);
 }
 
-int suchdef(char *t)
+int searchdef(char *t)
 {
      int i=0,j,k,l=0;
 
@@ -732,6 +736,7 @@ Datei *pp_getidat(void) {
 
 int icl_close(int *c)
 {
+     *c='\n';
      if(!fsp)
           return(E_EOF);
      
@@ -742,7 +747,6 @@ int icl_close(int *c)
 
      fclose(flist[fsp--].filep);
      nff=1;
-     *c='\n';
 
      return(E_OK);
 }
@@ -795,7 +799,7 @@ int pgetline(char *t)
      int c,er=E_OK;
      int rlen, tlen;
 
-     loopfl =0;
+     loopfl =0; /* set if additional fetch needed */
 
      filep =flist+fsp;
 
@@ -847,6 +851,34 @@ int pgetline(char *t)
 
 /*************************************************************************/
 
+/* this is the most disgusting code I have ever written, but Andre drove me
+to it because I can't think of any other F$%Y#*U(%&Y##^#KING way to fix the
+last line bug ... a very irritated Cameron */
+
+/* #define DEBUG_EGETC */
+int egetc(FILE *fp) {
+	int c;
+
+	c = getc(fp);
+	if (c == EOF) {
+		if (ungeteof) {
+#ifdef DEBUG_EGETC
+			fprintf(stderr, "eof claimed\n");
+#endif
+			return c;
+		} else {
+#ifdef DEBUG_EGETC
+			fprintf(stderr, "got eof!!\n");
+#endif
+			ungeteof = 1;
+			return '\n';
+		}
+	}
+	ungeteof = 0;
+	return c;
+}
+
+/* smart getc that can skip C comment blocks */
 int rgetc(FILE *fp)
 {
      static int c,d,fl;
@@ -855,19 +887,18 @@ int rgetc(FILE *fp)
 
      do
      {
-          while((c=getc(fp))==13);  /* remove ^M for unices */
+          while((c=egetc(fp))==13);  /* remove ^M for unices */
 
           if(fl && (c=='*'))
           {
-               if((d=getc(fp))!='/')
+               if((d=egetc(fp))!='/')
                     ungetc(d,fp);
                else
                {
                     fl--;
-                    while((c=getc(fp))==13);
+                    while((c=egetc(fp))==13);
                }
           }
-
           if(c=='\n')
           {
                flist[fsp].fline++;
@@ -875,7 +906,7 @@ int rgetc(FILE *fp)
           } else
           if(c=='/')
           {
-               if((d=getc(fp))!='*')
+               if((d=egetc(fp))!='*')
                     ungetc(d,fp);
                else
                     fl++;
@@ -903,9 +934,8 @@ int fgetline(char *t, int len, int *rlen, FILE *fp)
           t[i]=c;
           i= (i<len-1) ? i+1 : len-1;
      } while(1);
+
      *rlen = i;
      return(c);
 }
-
-
 

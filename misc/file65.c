@@ -1,22 +1,22 @@
-/*
-    xa65 - 6502 cross assembler and utility suite
-    file65 - prints information on 'o65' files
-    Copyright (C) 1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+/* file65 -- A part of xa65 - 65xx/65816 cross-assembler and utility suite
+ * Print information about o65 files
+ *
+ * Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +25,14 @@
 #include <errno.h>
 #include <string.h>
 
+#include "version.h"
+
 #define	BUF	(9*4+8)
+
+#define programname	"file65"
+#define progversion	"v0.2.1"
+#define author		"Written by André Fachat"
+#define copyright	"Copyright (C) 1997-2002 André Fachat."
 
 int read_options(FILE *fp);
 int print_labels(FILE *fp, int offset);
@@ -38,28 +45,43 @@ int rompar = 0;
 int romoff = 0;
 int labels = 0;
 
-void usage(void) {
-	printf("file65: prints file information on 'o65' files\n"
-		"  file65 [options] [filenames...]\n"
-		"options:\n"
-		"  -v        = print version number\n"
-		"  -h, -?    = print this help\n"
-		"  -P        = print the segment end addresses according to xa command line\n"
-		"              parameters '-b?'\n"
-		"  -a offset = print xa 'romable' parameter for another file behind this one\n"
-		"              in the same ROM. Add offset to start address.\n"
-		"  -A offset = same as '-a', but only print the start address of the next\n"
-		"              file in the ROM.\n"
-		"  -V        = print undefined and global labels\n"
-	);
-	exit(0);
+void usage(FILE *fp)
+{
+	fprintf(fp,
+		"Usage: %s [options] [file]\n"
+		"Print file information about o65 files\n"
+		"\n",
+		programname);
+	fprintf(fp,
+		"  -P         print the segment end addresses according to `xa' command line\n"
+		"               parameters `-b?'\n"
+		"  -a offset  print `xa' ``romable'' parameter for another file behind this one\n"
+		"               in the same ROM. Add offset to start address.\n"
+		"  -A offset  same as `-a', but only print the start address of the next\n"
+		"               file in the ROM\n"
+		"  -V         print undefined and global labels\n"
+		"  --version  output version information and exit\n"
+		"  --help     display this help and exit\n");
 }
 
 int main(int argc, char *argv[]) {
 	int i = 1, n, mode, hlen;
 	FILE *fp;
 	char *aligntxt[4]= {"[align 1]","[align 2]","[align 4]","[align 256]"};
- 	if(argc<=1) usage();
+	if(argc<=1) {
+		usage(stderr);
+		exit(1);
+	}
+
+	if (strstr(argv[1], "--help")) {
+          usage(stdout);
+	  exit(0);
+	}
+
+	if (strstr(argv[1], "--version")) {
+          version(programname, progversion, author, copyright);
+	  exit(0);
+	}
 
 	while(i<argc) {
 	  if(argv[i][0]=='-') {
@@ -81,9 +103,6 @@ int main(int argc, char *argv[]) {
 	    case 'P':
 		xapar = 1;
 		break;
-	    case 'h':
-	    case '?':
-		usage();
 	    default:
 		fprintf(stderr,"file65: %s unknown option\n",argv[i]);
 		break;
@@ -138,12 +157,12 @@ int main(int argc, char *argv[]) {
 		        ); 
 		      }
 		      if(rompar==1) {
-			printf("-A %ld ", (hdr[9]*256+hdr[8])
-						-hlen +romoff +fbuf.st_size);
+			printf("-A %lu ", (unsigned long)((hdr[9]*256+hdr[8])
+						-hlen +romoff +fbuf.st_size));
 		      } else
 		      if(rompar==2) {
-			printf("%ld ", (hdr[9]*256+hdr[8])
-						-hlen +romoff +fbuf.st_size);
+			printf("%lu ", (unsigned long)((hdr[9]*256+hdr[8])
+						-hlen +romoff +fbuf.st_size));
 		      }
 		      printf("\n");
 		    }
@@ -173,9 +192,9 @@ static struct { int opt; int strfl; char *string; } otab[] = {
 	{ 2, 1, "Assembler" },
 	{ 3, 1, "Author" },
 	{ 4, 1, "Creation Date" },
-	{ -1 }
+	{ -1, -1, NULL }
 };
- 
+
 void print_option(unsigned char *buf, int len) {
 	int i, strfl=0;
 	for(i=0;otab[i].opt>=0; i++) if(*buf==otab[i].opt) break;

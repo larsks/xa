@@ -1,24 +1,24 @@
+/* xa65 - 65xx/65816 cross-assembler and utility suite
+ *
+ * Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+ *
+ * Label management module (also see xau.c)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
-/*
-    xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
-
- 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +26,7 @@
 
 /* structs and defs */
 
+#include "xad.h"
 #include "xah.h"
 #include "xar.h"
 #include "xah2.h"
@@ -48,8 +49,6 @@ static int b_ltest(int,int);
 static int b_get(int*);
 static int b_test(int);
 static int ll_def(char *s, int *n, int b);     
-
-#define   hashcode(n,l)  (n[0]&0x0f)|(((l-1)?(n[1]&0x0f):0)<<4)
 
 /* local variables */
 
@@ -143,7 +142,7 @@ FILE *fp;
 int lg_set(char *s ) {
 	int n, er;
 
-	er = ll_such(s,&n);
+	er = ll_search(s,&n);
 
 	if(er==E_OK) {
 	  fprintf(stderr,"Warning: global label doubly defined!\n");
@@ -191,7 +190,7 @@ int l_def(char *s, int *l, int *x, int *f)
           er=E_SYNTAX;
      else
      {
-          er=ll_such(s+i,&n);
+          er=ll_search(s+i,&n);
                
           if(er==E_OK)
           {
@@ -227,14 +226,14 @@ int l_def(char *s, int *l, int *x, int *f)
      return(er);
 }
 
-int l_such(char *s, int *l, int *x, int *v, int *afl)
+int l_search(char *s, int *l, int *x, int *v, int *afl)
 {
      int n,er,b;
 
      *afl=0;
 
-     er=ll_such(s,&n);
-/*printf("l_such: lab=%s(l=%d), afl=%d, er=%d, n=%d\n",s,*l, *afl,er,n);*/
+     er=ll_search(s,&n);
+/*printf("l_search: lab=%s(l=%d), afl=%d, er=%d, n=%d\n",s,*l, *afl,er,n);*/
      if(er==E_OK)
      {
           ltp=afile->la.lt+n;
@@ -279,7 +278,9 @@ int l_vget(int n, int *v, char **s)
 void l_addocc(int n, int *v, int *afl) {
      LabOcc *p, *pp;
 
-     ltp = afile->la.lt+n; 
+     (void)v;		/* quench warning */
+     (void)afl;		/* quench warning */
+     ltp = afile->la.lt+n;
      pp=NULL;
      p = ltp->occlist;
      while(p) {
@@ -401,7 +402,7 @@ static int ll_def(char *s, int *n, int b)          /* definiert naechstes Label 
 }
 
 
-int ll_such(char *s, int *n)          /* such Label in Tabelle ,nr->n    */
+int ll_search(char *s, int *n)          /* search Label in Tabelle ,nr->n    */
 {
      int i,j=0,k,er=E_NODEF,hash;
 
@@ -410,7 +411,7 @@ int ll_such(char *s, int *n)          /* such Label in Tabelle ,nr->n    */
      hash=hashcode(s,j);
      i=afile->la.hashindex[hash];
 
-/*printf("such?\n");*/
+/*printf("search?\n");*/
      if(i>=afile->la.ltm) return E_NODEF;
 
      do
@@ -439,7 +440,7 @@ int ll_such(char *s, int *n)          /* such Label in Tabelle ,nr->n    */
 #if 0
      if(er!=E_OK && er!=E_NODEF)
      {
-          fprintf(stderr, "Fehler in ll_such:er=%d\n",er);
+          fprintf(stderr, "Fehler in ll_search:er=%d\n",er);
           getchar();
      }
 #endif
@@ -450,7 +451,7 @@ int ll_pdef(char *t)
 {
 	int n;
 	
-	if(ll_such(t,&n)==E_OK)
+	if(ll_search(t,&n)==E_OK)
 	{
 		ltp=afile->la.lt+n;
 		if(ltp->fl)
