@@ -22,7 +22,7 @@
 extern void errout(int er);
 extern void logout(char *s);
 
-extern int ncmos,cmosfl;
+extern int ncmos,cmosfl,w65816,n65816;
 extern int masm, nolink;
 extern int noglob;
 extern int showblk;
@@ -35,6 +35,7 @@ extern int dlen, dbase;
 extern int zlen, zbase;
 extern int romable, romadr;
 
+extern int memode,xmode;
 extern int segment;
 extern int pc[SEG_MAX];
 
