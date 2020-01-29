@@ -3,7 +3,7 @@
  * Copyright (C) 1989-1997 Andre Fachat (a.fachat@physik.tu-chemnitz.de)
  * Maintained by Cameron Kaiser
  *
- * PETSCII conversion module
+ * Charset conversion module
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,6 +50,49 @@ static signed char convert_char_petscii(signed char c) {
 	return c;
 }
 
+/*
+ * Built upon Steve Judd's suggested PETSCII -> screen code algorithm
+ * This could probably be written a lot better, but it works.
+ * http://www.floodgap.com/retrobits/ckb/display.cgi?572
+ */
+static signed char convert_char_petscreen(signed char c) {
+	int i;
+
+	i = (int)convert_char_petscii(c);
+#ifdef SIGH
+fprintf(stderr, "input: %i output: %i\n", c, i);
+#endif
+	if (i< 0)
+		i += 0x80;
+	i ^= 0xe0;
+#ifdef SIGH
+fprintf(stderr, "(1)input: %i output: %i\n", c, i);
+#endif
+	i += 0x20;
+	i &= 0xff;
+#ifdef SIGH
+fprintf(stderr, "(2)input: %i output: %i\n", c, i);
+#endif
+	if (i < 0x80)
+		return (signed char)i;
+	i += 0x40;
+	i &= 0xff;
+#ifdef SIGH
+fprintf(stderr, "(3)input: %i output: %i\n", c, i);
+#endif
+	if (i < 0x80)
+		return (signed char)i;
+	i ^= 0xa0;
+#ifdef SIGH
+fprintf(stderr, "(4)input: %i output: %i\n", c, i);
+#endif
+	return (signed char)i;
+}
+
+static signed char convert_char_high(signed char c) {
+	return (c | 0x80);
+}
+	
 typedef struct { 
 	char *name;
 	signed char (*func)(signed char);
@@ -58,6 +101,8 @@ typedef struct {
 static charset charsets[] = {
 	{ "ASCII", convert_char_ascii },
 	{ "PETSCII", convert_char_petscii },
+	{ "PETSCREEN", convert_char_petscreen },
+	{ "HIGH", convert_char_high },
 	{ NULL, NULL }
 };
 

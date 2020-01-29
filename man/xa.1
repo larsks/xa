@@ -1,4 +1,4 @@
-.TH XA "1" "8 August 2008"
+.TH XA "1" "7 February 2009"
 
 .SH NAME
 xa \- 6502/R65C02/65816 cross-assembler
@@ -113,8 +113,10 @@ see
 .BR ENVIRONMENT ).
 .TP
 .B \-O charset 
-Define the output charset for values in quotes. Currently supported are ASCII
-(default) and PETSCII.
+Define the output charset for character strings. Currently supported are ASCII
+(default), PETSCII (Commodore ASCII),
+PETSCREEN (Commodore screen codes) and HIGH (set high bit on all
+characters).
 .TP
 .B \-p?
 Set the alternative preprocessor character to
@@ -180,9 +182,9 @@ current value of the program counter
 The ASCII value of any quoted character is
 inserted directly into the program text (example:
 .B """A"""
-inserts the byte "A" into the output stream). See also the
+inserts the byte "A" into the output stream); see also the
 .B PSEUDO-OPS
-section.
+section. This is affected by the currently selected character set, if any.
 .LP
 .B Labels
 define locations within the program text, just as in other multi-pass
@@ -418,25 +420,36 @@ The arguments may be expressions. Any number of bytes can be specified.
 .TP
 .B .asc """text1""","text2",...
 Specifies a character string which will be inserted into the assembled
-object. The characters are understood according to the currently specified
+object. Strings are understood according to the currently specified
 character set; for example, if ASCII is specified, they will be rendered as
 ASCII, and if PETSCII is specified, they will be translated into the equivalent
 Commodore ASCII equivalent. Other non-standard ASCIIs such as ATASCII for
-Atari computers should be specified explicitly using their ASCII equivalents or
+Atari computers should use the ASCII equivalent characters; graphic and
+control characters should be specified explicitly using 
 .B .byt
-for other characters, such as control and graphics sequences. Note that
+for the precise character you want. Note that
 when specifying the argument of an opcode,
 .B .asc
 is not necessary; the quoted character can simply be inserted (e.g.,
 .B lda #"A"
-). Any number of character strings can be specified.
+), and is also affected by the current character set.
+Any number of character strings can be specified.
 .LP
 .B .byt
 and
 .B .asc
 are synonymous, so you can mix things such as
 .B .byt $43, 22, """a character string"""
-and get the expected result.
+and get the expected result. The string is subject to the current character
+set, but the remaining bytes are inserted wtihout modification.
+.TP
+.B .aasc """text1""","text2",...
+Specifies a character string that is
+.B always
+rendered in true ASCII regardless of the current character set. Like
+.BR .asc ,
+it is synonymous with
+.BR .byt .
 .TP
 .B .word value1,value2,value3...
 Specifies a string of 16-bit words to be placed into the assembled object in
@@ -817,7 +830,7 @@ This manual page was written by David Weinehall <tao@acc.umu.se>,
 Andre Fachat <fachat@web.de>
 and Cameron Kaiser <ckaiser@floodgap.com>.
 Original xa package (C)1989-1997 Andre Fachat. Additional changes
-(C)1989-2008 Andre Fachat, Jolse Maginnis, David Weinehall,
+(C)1989-2009 Andre Fachat, Jolse Maginnis, David Weinehall,
 Cameron Kaiser. The official maintainer is Cameron Kaiser.
 
 .SH WEBSITE

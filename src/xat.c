@@ -21,7 +21,7 @@
  */
 
 /* enable this to turn on (copious) optimization output */
-/* #define DEBUG_AM  */
+/* #define DEBUG_AM */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -43,7 +43,7 @@ int dsb_len = 0;
 
 static int t_conv(signed char*,signed char*,int*,int,int*,int*,int*,int,int*);
 static int t_keyword(signed char*,int*,int*);
-static int tg_asc(signed char*,signed char*,int*,int*,int*,int*);
+static int tg_asc(signed char*,signed char*,int*,int*,int*,int*,int);
 static void tg_dez(signed char*,int*,int*);
 static void tg_hex(signed char*,int*,int*);
 static void tg_oct(signed char*,int*,int*);
@@ -71,12 +71,11 @@ static char *kt[] ={
      "sei","smb","sta","stx","sty","stz","sep","stp","tax","tay",
      "trb","tsb","tsx","txa","txs","tya","txy","tyx","tcd","tdc",
 
-     "tcs","tsc","wai","wdb","xba","xce", /* 96 */
+     "tcs","tsc","wai","wdb","xba","xce", 
 
      ".byt",".word",".asc",".dsb", ".(", ".)", "*=", ".text",".data",".bss",
      ".zero",".fopt", ".byte", ".end", ".list", ".xlist", ".dupb", ".blkb", ".db", ".dw",
-     ".align",".block", ".bend",".al",".as",".xl",".xs", ".bin"
-		/* 96 + 28 = 124 */
+     ".align",".block", ".bend",".al",".as",".xl",".xs", ".bin", ".aasc"
 
 };
 
@@ -86,7 +85,7 @@ static int lp[]= { 0,1,1,1,1,2,2,1,1,1,2,2,2,1,1,1,2,2 };
 /* last valid mnemonic */
 #define   Lastbef   93
 /* last valid token+1 */
-#define   Anzkey    122
+#define   Anzkey    123
 
 #define   Kbyt      Lastbef+1
 #define   Kword     Lastbef+2
@@ -118,6 +117,7 @@ static int lp[]= { 0,1,1,1,1,2,2,1,1,1,2,2,2,1,1,1,2,2 };
 #define   Kxshort   Lastbef+27
 
 #define   Kbin      Lastbef+28
+#define   Kaasc     Lastbef+29
 
 #define   Kreloc    Anzkey   	/* *= (relocation mode) */
 #define   Ksegment  Anzkey+1
@@ -774,7 +774,7 @@ fprintf(stderr, "E_NODEF pass1 xat.c\n");
 		/* .byt, .asc, .word, .dsb, .fopt pseudo-op dispatch */
 
           } else
-          if(n==Kbyt || n==Kasc)
+          if(n==Kbyt || n==Kasc || n==Kaasc)
           {
 #ifdef DEBUG_AM
 fprintf(stderr, "byt pass 1 %i\n", nk+1-na1+na2);
@@ -1049,7 +1049,7 @@ int t_p2(signed char *t, int *ll, int fl, int *al)
 				er = E_BIN;
 			}
 		}
-	} else if(n==Kasc || n==Kbyt) {
+	} else if(n==Kasc || n==Kbyt || n==Kaasc) {
                i=1;
                j=0;
                while(!er && t[i]!=T_END)
@@ -1763,7 +1763,7 @@ fprintf(stderr, "could not find %s\n", (char *)s+p);
                          break;
                     case '\'':
                     case '\"':
-                         er=tg_asc(s+p,t+q,&q,&p,na1,na2);
+                         er=tg_asc(s+p,t+q,&q,&p,na1,na2,n);
                          break;
                     case ',':
                          if(mk)
@@ -2019,19 +2019,26 @@ static void tg_hex(signed char *s, int *l, int *v)
 /* 
  * tokenize a string - handle two delimiter types, ' and " 
  */
-static int tg_asc(signed char *s, signed char *t, int *q, int *p, int *na1, int *na2)
+static int tg_asc(signed char *s, signed char *t, int *q, int *p, int *na1, int *na2,int n)
 {
 
      int er=E_OK,i=0,j=0;
 
      signed char delimiter = s[i++];
      
+#ifdef DEBUG_AM
+fprintf(stderr, "tg_asc token = %i\n", n);
+#endif
+
      t[j++]='"';	/* pass2 token for string */
      j++;		/* skip place for length */
 
      while(s[i]!='\0' && s[i]!=delimiter)
      {
-          if(s[i]!='^') { 	/* no escape code "^" */
+	/* do NOT convert for Kbin or Kaasc, or for initial parse */
+	  if (!n || n == Kbin || n == Kaasc) {
+		t[j++]=s[i];
+          } else if(s[i]!='^') { 	/* no escape code "^" */
                t[j++]=convert_char(s[i]);
           } else { 		/* escape code */
 		  signed char payload = s[i+1];

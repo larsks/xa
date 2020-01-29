@@ -18,6 +18,7 @@ incerr/		1) .xl/.al should error without -w 2) error should be in
 		the correct file
 binclude/	Binary include code with some weird casing
 chppch/		Changing preprocessor characters (-p)
+charset/	Tests of when charsets should be honoured and when not
 
 Cameron Kaiser, André Fachat
 

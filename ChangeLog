@@ -284,3 +284,14 @@ xa-2.3.4
   * Documentation updated.
 
  -- Cameron Kaiser <ckaiser@floodgap.com> 1 July, 2008
+
+xa-2.3.5
+
+  Most of this was suggested by Martin Wendt.
+  * Fixed bug where .bin was affected by the current character set.
+  * Added PETSCREEN and HIGH character sets.
+  * Added .aasc.
+  * Some more legibility work.
+  * Documentation updated.
+
+ -- Cameron Kaiser <ckaiser@floodgap.com> 7 February, 2009
