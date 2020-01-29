@@ -3,6 +3,7 @@
 
 q = $0005
 r = $000005
+fizz
 /* these should be optimized to zero page */
 	sta $05
 	sta $0005
@@ -24,3 +25,5 @@ r = $000005
 	jmp @breadbox
 
 breadbox	rts
+		bne fizz
+		rts

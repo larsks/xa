@@ -30,12 +30,18 @@ segment respectively. See the
 .BR xa (1)
 man page for an explanation.
 .TP
-.B \-x? addr
+.B \-x? 
 Extract segment
 .B ?
 from the file instead of writing back the whole
 file. Valid arguments are t and d for the text or data segment
 respectively. Not valid for bss or zero.
+.TP
+.B \-X 
+Extract text and data segment together
+from the file instead of writing back the whole
+file. Relocating data segment to the end of the text segment
+(ignoring the \-xd option) before extracting.
 .TP
 .B \-\-help
 Show summary of options.

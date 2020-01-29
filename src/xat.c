@@ -21,7 +21,7 @@
  */
 
 /* enable this to turn on (copious) optimization output */
-/* #define DEBUG_AM */
+/* #define DEBUG_AM  */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -37,6 +37,7 @@
 #include "xat.h"
 #include "xao.h"
 #include "xap.h"
+#include "xacharset.h"
 
 int dsb_len = 0;
 
@@ -425,10 +426,14 @@ printf(" wrote %02x %02x %02x %02x %02x %02x\n",
           } else
           if(n==Kalong)
           {
+		if (!w65816) {
+			er=E_65816;
+		} else {
                memode=1;
                t[0]=Kalong;
                *ll=1;
                er=E_OKDEF;
+		}
           } else
           if(n==Kashort)
           {
@@ -439,10 +444,14 @@ printf(" wrote %02x %02x %02x %02x %02x %02x\n",
           } else
           if(n==Kxlong)
           {
+		if (!w65816) {
+			er=E_65816;
+		} else {
                xmode=1;
                t[0]=Kxlong;
                *ll=1;
                er=E_OKDEF;
+		}
           } else
           if(n==Kxshort)
           {
@@ -541,14 +550,21 @@ fprintf(stderr, "E_OK ... t_p2 xat.c\n");
 	}
           
      } else
-     if(er==E_NODEF) /* no label was found from t_conv! */
+     if(er==E_NODEF)
      {
-	er = E_OK;
+
+/*
+ * no label was found from t_conv!
+ * try to figure out most likely length
+ *
+ */
+
+	er = E_OK; /* stuff error */
           n=t[0];	/* look at first token */
 
-/* mnemonic dispatch -- abbreviated form in t_p2, but changed here to not
-do anything other than 24-bit optimization since we don't know the value of
-the label */
+	/* mnemonic dispatch -- abbreviated form in t_p2, but changed here
+		to not do anything other than 24-bit optimization since we
+		don't know the value of the label */
 
 		/* choose addressing mode; add commas found */
 
@@ -618,27 +634,29 @@ the label */
 				errout(E_ADRESS);
 			am=opt[am];
 		}
-			
-
+		/* if ! is declared, force to 16-bit quantity */
+		if (t[l-1]=='!' && am>16 && opt[am]>=0 && bl) {
+			am=opt[am];
+		}
 
 		/* couldn't match anything for this opcode */
                if(!bl)
                     er=E_SYNTAX;
                else {
+		/* ok, get length of instruction */
                     bl=le[am];
+		/* and add one for 65816 special instruction modes */
                     if( ((ct[n][am]&0x400) && memode) ||
 			((ct[n][am]&0x800) && xmode)) {
                           bl++;
 			}
                 }
+
+
 		if (er == E_NODEF)
 			er = E_OK;
 
-/*
- *
- * .byt, .asc dispatch
- *
- */
+		/* .byt, .asc, .word, .dsb, .fopt pseudo-op dispatch */
 
           } else
           if(n==Kbyt || n==Kasc)
@@ -666,6 +684,9 @@ the label */
           
           if(!er)
                er=E_OKDEF;
+#ifdef DEBUG_AM
+fprintf(stderr, "guessing instruction length is %d\n", bl);
+#endif
      }
      if(er==E_NOLINE)
      {
@@ -1285,16 +1306,16 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
    comments ... Cameron */
 /* note that I don't write so good tho' ;) */
 
-     *nk=0;         /* Anzahl Komma               *//* comma count */
-     *na1=0;        /* Anzahl "asc-texte"         *//* asc text count */
-     *na2=0;        /* und Anzahl Byte in diesen  *//* sum total bytecount */
+     *nk=0;         /* comma count */
+     *na1=0;        /* asc text count */
+     *na2=0;        /* total bytecount in asc texts */
      ll=0;
      er=E_OK;		/* error state */
      p=0;
      q=0;
      ud = uz = byte =0;
-     mk=0;          /* 0 = mehrere Kommas erlaubt *//* 0 = add'l commas ok */
-     fl=0;          /* 1 = text einfach weitergeben *//* 1 = pass text thru */
+     mk=0;          /* 0 = add'l commas ok */
+     fl=0;          /* 1 = pass text thru */
      afl=0;         /* pointer flag for label */
 
      while(s[p]==' ') p++;
@@ -1755,34 +1776,58 @@ static void tg_hex(signed char *s, int *l, int *v)
      *v=val;
 }
 
+/* 
+ * tokenize a string - handle two delimiter types, ' and " 
+ */
 static int tg_asc(signed char *s, signed char *t, int *q, int *p, int *na1, int *na2)
 {
+
      int er=E_OK,i=0,j=0;
+
+     signed char delimiter = s[i++];
      
-     t[j++]=s[i++];      /* " */
-     j++;
-     while(s[i]!='\0' && s[i]!='\"')
+     t[j++]='"';	/* pass2 token for string */
+     j++;		/* skip place for length */
+
+     while(s[i]!='\0' && s[i]!=delimiter)
      {
-          if(s[i]!='^')
-               t[j++]=s[i];
-          else 
-          switch(s[i+1]) {
-          case '\0':
-          case '\"':
-               er=E_SYNTAX;
-               break;
-          case '^':
-               t[j++]='^';
-               i++;
-               break;
-          default:
-               t[j++]=s[i+1]&0x1f;
-               i++;
-               break;
-          }
+          if(s[i]!='^') { 	/* no escape code "^" */
+               t[j++]=convert_char(s[i]);
+          } else { 		/* escape code */
+		  signed char payload = s[i+1];
+	          switch(payload) {
+	          case '\0':
+	               er=E_SYNTAX;
+	               break;
+	          case '\"':
+		       if (payload == delimiter) {
+	                 t[j++]=convert_char(payload);
+	                 i++;
+		       } else {
+	                 er=E_SYNTAX;
+		       }
+	               break;
+	          case '\'':
+		       if (payload == delimiter) {
+	                 t[j++]=convert_char(payload);
+	                 i++;
+		       } else {
+	                 er=E_SYNTAX;
+		       }
+	               break;
+	          case '^':
+	               t[j++]=convert_char('^');
+	               i++;
+	               break;
+	          default:
+	               t[j++]=convert_char(payload&0x1f);
+	               i++;
+	               break;
+	          }
+	  }
           i++;
      }
-     if(j==3)
+     if(j==3)	/* optimize single byte string to value */
      {
           t[0]=T_VALUE;
           t[1]=t[2];
@@ -1790,13 +1835,14 @@ static int tg_asc(signed char *s, signed char *t, int *q, int *p, int *na1, int 
           t[3]=0;
           j++;
      } else
-     {
+     {		/* handle as string */
           t[1]=j-2;
           *na1 +=1;
           *na2 +=j-2;
      }
-     if(s[i]=='\"')
-          i++;
+     if(s[i]==delimiter) {	/* in case of no error */
+          i++;			/* skip ending delimiter */
+     }
      *q +=j;
      *p +=i;
      return(er);

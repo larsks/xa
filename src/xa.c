@@ -42,19 +42,20 @@
 #include "xap.h"
 #include "xar.h"
 #include "xat.h"
+#include "xacharset.h"
 
 #include "version.h"
 
 /* ANZERR: total number in ertxt[]
    ANZERR-ANZWARN-1: first index to non-fatal warnings */
 
-#define ANZERR		32
-#define ANZWARN		7
+#define ANZERR		35
+#define ANZWARN		8
 
 #define programname	"xa"
-#define progversion	"v2.3.0"
+#define progversion	"v2.3.2"
 #define authors		"Written by Andre Fachat, Jolse Maginnis, David Weinehall and Cameron Kaiser"
-#define copyright	"Copyright (C) 1997-2006 Andre Fachat, Jolse Maginnis, David Weinehall\nand Cameron Kaiser."
+#define copyright	"Copyright (C) 1989-2007 Andre Fachat, Jolse Maginnis, David Weinehall\nand Cameron Kaiser."
 
 /* exported globals */
 int ncmos, cmosfl, w65816, n65816;
@@ -142,6 +143,8 @@ int main(int argc,char *argv[])
 	w65816 = 1;	/* allow 65816 per default */
      }
 
+     /* default output charset for strings in quotes */
+     set_charset("ASCII");
 
      ifiles = malloc(mifiles*sizeof(char*));
 
@@ -185,6 +188,19 @@ int main(int argc,char *argv[])
 	  switch(argv[i][1]) {
 	  case 'M':
 		masm = 1;	/* MASM compatibility mode */
+		break;
+	  case 'O':		/* output charset */
+		{
+		  char *name = NULL;
+		  if (argv[i][2] == 0) { 
+		    name = argv[++i]; 
+		  } else {
+		    name = argv[i]+2;
+		  }
+		  if (set_charset(name) < 0) {
+		    fprintf(stderr, "Output charset name '%s' unknown - ignoring! (check case?)\n", name);
+		  }
+		}
 		break;
 	  case 'A':		/* make text segment start so that text relocation
 				   is not necessary when _file_ starts at adr */
@@ -230,6 +246,7 @@ int main(int argc,char *argv[])
 		break;
 	  case 'x':		/* old filename behaviour */
 		oldfile = 1;
+		fprintf(stderr, "Warning: -x is now deprecated and may disappear in future versions!\n");
 		break;
 	  case 'I':
 		if(argv[i][2]==0) {
@@ -709,11 +726,11 @@ static int pass1(void)
 
           
 
-     /*{ int i; printf("Pass 1 \n");
+/*     { int i; printf("Pass 1 \n");
      for(i=0;i<afile->mn.tmpz;i++)
-          fprintf(stderr, " %02x",afile->mn.tmp[i]);
-     getchar();}*/
-
+          fprintf(stderr, " %02x",255 & afile->mn.tmp[i]);
+     getchar();}
+*/
      return(ner);
 }
 
@@ -727,6 +744,7 @@ static void usage(int default816, FILE *fp)
 	fprintf(fp,
 	    " -v           verbose output\n"
 	    " -x           old filename behaviour (overrides `-o', `-e', `-l')\n"
+	    "              This is deprecated and may disappear in future versions!\n"
             " -C           no CMOS-opcodes\n"
             " -W           no 65816-opcodes%s\n"
             " -w           allow 65816-opcodes%s\n",
@@ -755,6 +773,7 @@ static void usage(int default816, FILE *fp)
 	    " -G           suppress list of exported globals\n");
 	fprintf(fp,
 	    " -DDEF=TEXT   defines a preprocessor replacement\n"
+	    " -Ocharset    set output charset (PETSCII or ASCII), case-sensitive\n"
 	    " -Idir        add directory `dir' to include path (before XAINPUT)\n"
 	    "  --version   output version information and exit\n"
 	    "  --help      display this help and exit\n");
@@ -785,7 +804,9 @@ static char *ertxt[] = { "Syntax","Label defined",
 	  "File Option not at file start (when ROM-able)",
 	  "Illegal align value",
           "65816 code used",
-	  /* warnings start here */	
+	  "Exceeded recursion limit for label evaluation",
+	  "Unresolved preprocessor directive at end of file",
+	  /* warnings here */
 	  "Cutting word relocation in byte value",
 	  "Byte relocation in word value",
 	  "Illegal pointer arithmetic",
@@ -793,6 +814,7 @@ static char *ertxt[] = { "Syntax","Label defined",
 	  "High byte access to low byte pointer",
 	  "Low byte access to high byte pointer",
 	  "Can't optimize forward-defined label; using absolute addressing",
+	  "Open preprocessor directive at end of file (intentional?)",
  };
 
 static int gl;
@@ -844,9 +866,9 @@ static int getline(char *s)
      static int ec;
 
      static int i,c;
-     int hkfl,j;
+     int hkfl,j,comcom;
 
-     j=hkfl=0;
+     j=hkfl=comcom=0;
      ec=E_OK;
 
      if(!gl)
@@ -895,12 +917,13 @@ static int getline(char *s)
 
                if (c=='\"')
                     hkfl^=1;
-               if (c=='\0')
-                    break;
-               if ((!masm) && c==':' && !hkfl)
-               {
-                    gl=1;
-                    break;
+		if (c==';' && !hkfl)
+			comcom = 1;
+               if (c=='\0') 
+                    break;	/* hkfl = comcom = 0 */
+		if (c==':' && !hkfl && (!comcom || !masm)) {
+                    		gl=1;
+                    		break;
                }
                j++;
           } while (c!='\0' && j<MAXLINE-1 && i<MAXLINE-1);

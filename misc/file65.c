@@ -195,6 +195,17 @@ static struct { int opt; int strfl; char *string; } otab[] = {
 	{ -1, -1, NULL }
 };
 
+static char* stab[] = {
+	"undefined" ,
+	"absolute" ,
+	"text" ,
+	"data" ,
+	"bss" ,
+	"zero" ,
+	"-" ,
+	"-" 
+};
+
 void print_option(unsigned char *buf, int len) {
 	int i, strfl=0;
 	for(i=0;otab[i].opt>=0; i++) if(*buf==otab[i].opt) break;
@@ -289,7 +300,7 @@ printf("print_labels:offset=%d\n",offset);
 	    seg = fgetc(fp) & 0xff;
 	    off= (fgetc(fp) & 0xff);
 	    off+= ((fgetc(fp) << 8) & 0xff00);
-	    printf(" (segID=%d, offset=%04x)\n", seg, off);
+	    printf(" (segID=%d (%s), offset=%04x)\n", seg, stab[seg&7], off);
 		 
 	  } while(--nud);
 	}

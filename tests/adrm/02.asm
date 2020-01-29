@@ -2,6 +2,7 @@
 	* = $0400
 
 q = $0005
+fizz
 /* these should be optimized to zero page */
 	sta $05
 	sta $0005
@@ -23,8 +24,10 @@ q = $0005
 	jmp $fce2
 	jmp breadbox
 	lsr $2020
+	bne fizz
 	rts
 
-
 breadbox	rts
+		beq fizz
+		rts
 

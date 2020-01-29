@@ -7,3 +7,4 @@ o	inc a -> ina, dec a -> dea (right now uses bare inc and dec)
 
 o	VICE label file support
 
+o	Smarter -X that can cope with non-block-aligned segment sizes

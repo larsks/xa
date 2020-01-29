@@ -243,3 +243,12 @@ xa-2.3.0
   * @ now mostly obligatory for 24-bit addressing
 
  -- Cameron Kaiser <ckaiser@floodgap.com> 2 Apr, 2006
+
+xa-??
+
+  * Introduced switch to convert values in quotes to different character
+    sets. Currently supported are ASCII (default) and PETSCII
+  * Fixed some quote bugs
+
+ -- André Fachat <afachat@gmx.de> 23 Dec, 2006
+

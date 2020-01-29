@@ -41,18 +41,41 @@ typedef struct {
 	int	len;
 } undefs;
 
+/* file information */
 typedef struct {
-	char		*fname;
-	size_t		fsize;
-	unsigned char	*buf;
-	int		tbase, tlen, dbase, dlen, bbase, blen, zbase, zlen;
-	int		tdiff, ddiff, bdiff, zdiff;
-	int		tpos, dpos, upos, trpos, drpos, gpos;
-	int		lasttreloc, lastdreloc;
-	int		nundef;
-	undefs 		*ud;
+	char		*fname;		/* file name */
+	size_t		fsize;		/* length of file */
+	unsigned char	*buf;		/* file content */
+
+	int		tbase;		/* header: text base */
+	int		tlen;		/* text length */
+	int		dbase;		/* data base */
+	int		dlen;		/* data length */
+	int		bbase;		/* bss base */
+	int		blen;		/* bss length */
+	int		zbase;		/* zero base */
+	int		zlen;		/* zero length */
+
+	int		tdiff;		/* text segment relocation diff */
+	int		ddiff;		/* data segment relocation diff */
+	int		bdiff;		/* bss  segment relocation diff */
+	int		zdiff;		/* zero segment relocation diff */
+
+	int		tpos;		/* position of text segment in file */
+	int		dpos;		/* position of data segment in file */
+	int		upos;		/* position of undef'd list in file */
+	int		trpos;		/* position of text reloc tab in file */
+	int		drpos;		/* position of data reloc tab in file */
+	int		gpos;		/* position of globals list in file */
+
+	int		lasttreloc;
+	int		lastdreloc;
+
+	int		nundef;		/* number of undefined labels */
+	undefs 		*ud;		/* undefined labels list NULL if none */
 } file65;
 
+/* globally defined lables are stored in this struct */
 typedef struct {
 	char 	*name;
 	int	len;		/* length of labelname */
@@ -180,12 +203,15 @@ int main(int argc, char *argv[]) {
 	for(i=0;i<j;i++) {
 	  file = fp[i];
 
+	  /* compute relocation differences */
 	  file->tdiff =  ((tbase + ttlen) - file->tbase);
 	  file->ddiff =  ((dbase + tdlen) - file->dbase);
 	  file->bdiff =  ((bbase + tblen) - file->bbase);
 	  file->zdiff =  ((zbase + tzlen) - file->zbase);
 /*printf("tbase=%04x, file->tbase=%04x, ttlen=%04x -> tdiff=%04x\n",
 		tbase, file->tbase, ttlen, file->tdiff);*/
+
+	  /* update globals (for result file) */
 	  ttlen += file->tlen;
 	  tdlen += file->dlen;
 	  tblen += file->blen;
@@ -286,30 +312,33 @@ int read_undef(unsigned char *buf, file65 *file) {
 	n = buf[0] + 256*buf[1];
 
 	file->nundef = n;
-	file->ud = malloc(n*sizeof(undefs));
-	if(!file->ud) {
-	  fprintf(stderr,"Oops, no more memory\n");
-	  exit(1);
+
+	if (n == 0) {
+		file->ud = NULL;
+	} else {	
+		file->ud = malloc(n*sizeof(undefs));
+		if(!file->ud) {
+		  fprintf(stderr,"Oops, no more memory\n");
+		  exit(1);
+		}
+		i=0;
+		while(i<n){
+		  file->ud[i].name = (char*) buf+l;
+		  ll=l;
+		  while(buf[l++]);
+		  file->ud[i].len = l-ll-1;
+/*printf("read undef '%s'(%p), len=%d, ll=%d, l=%d, buf[l]=%d\n",
+		file->ud[i].name, file->ud[i].name, file->ud[i].len,ll,l,buf[l]);*/
+		  i++;
+		}
 	}
-	i=0;
-	while(i<n){
-	  file->ud[i].name = (char*) buf+l;
-	  ll=l;
-	  while(buf[l++]);
-	  file->ud[i].len = l-ll-1;
-/*printf("read undef '%s'(%p), len=%d, ll=%d, l=%d\n",
-		file->ud[i].name, file->ud[i].name, file->ud[i].len,ll,l);*/
-	  i++;
-	}
-/*printf("return l=%d\n",l);*/
 	return l;
 }
 
+/* compute and return the length of the relocation table */
 int len_reloc_seg(unsigned char *buf, int ri) {
 	int type, seg;
 
-/*printf("tdiff=%04x, ddiff=%04x, bdiff=%04x, zdiff=%04x\n",
-		fp->tdiff, fp->ddiff, fp->bdiff, fp->zdiff);*/
 	while(buf[ri]) {
 	  if((buf[ri] & 255) == 255) {
 	    ri++;
@@ -604,50 +633,64 @@ int find_global(unsigned char *bp, file65 *fp, int *seg) {
 	return 0;
 }
 
-int reloc_seg(unsigned char *buf, int adr, int ri, int *lreloc, file65 *fp) {
+int reloc_seg(unsigned char *buf, int pos, int ri, int *lreloc, file65 *fp) {
 	int type, seg, old, new;
 
-	adr--;
-/*printf("tdiff=%04x, ddiff=%04x, bdiff=%04x, zdiff=%04x\n",
-		fp->tdiff, fp->ddiff, fp->bdiff, fp->zdiff);*/
+	/* 
+	   pos = position of segment in *buf
+	   ri  = position of relocation table in *buf
+	*/
+	pos--;
+/*printf("reloc_seg: adr=%04x, tdiff=%04x, ddiff=%04x, bdiff=%04x, zdiff=%04x\n", pos, fp->tdiff, fp->ddiff, fp->bdiff, fp->zdiff); */
 	while(buf[ri]) {
 	  if((buf[ri] & 255) == 255) {
-	    adr += 254;
+	    pos += 254;
 	    ri++;
 	  } else {
-	    adr += buf[ri] & 255;
+	    pos += buf[ri] & 255;
 	    ri++;
 	    type = buf[ri] & 0xe0;
 	    seg = buf[ri] & 0x07;
-/*printf("reloc entry @ rtab=%p (offset=%d), adr=%04x, type=%02x, seg=%d\n",buf+ri-1, *(buf+ri-1), adr, type, seg);*/
+/*printf("reloc entry @ ri=%04x, pos=%04x, type=%02x, seg=%d\n",ri, pos, type, seg);*/
 	    ri++;
 	    switch(type) {
 	    case 0x80:
-		old = buf[adr] + 256*buf[adr+1];
-		if(seg) new = old + reldiff(seg);
-		else new = old + find_global(buf+ri, fp, &seg);
+		old = buf[pos] + 256*buf[pos+1];
+		if(seg) {
+			new = old + reldiff(seg);
+		} else {
+			new = old + find_global(buf+ri, fp, &seg);
+			ri += 2;	/* account for label number */
+		}
 /*printf("old=%04x, new=%04x\n",old,new);*/
-		buf[adr] = new & 255;
-		buf[adr+1] = (new>>8)&255;
+		buf[pos] = new & 255;
+		buf[pos+1] = (new>>8)&255;
 		break;
 	    case 0x40:
-		old = buf[adr]*256 + buf[ri];
-		if(seg) new = old + reldiff(seg);
-		else new = old + find_global(buf+ri+1, fp, &seg);
-		buf[adr] = (new>>8)&255;
+		old = buf[pos]*256 + buf[ri];
+		if(seg) {
+			new = old + reldiff(seg);
+		} else {
+			new = old + find_global(buf+ri+1, fp, &seg);
+			ri += 2;	/* account for label number */
+		}
+		buf[pos] = (new>>8)&255;
 		buf[ri] = new & 255;
 		ri++;
 		break;
 	    case 0x20:
-		old = buf[adr];
-		if(seg) new = old + reldiff(seg);
-		else new = old + find_global(buf+ri, fp, &seg);
-		buf[adr] = new & 255;
+		old = buf[pos];
+		if(seg) {
+			new = old + reldiff(seg);
+		} else {
+			new = old + find_global(buf+ri, fp, &seg);
+			ri += 2;	/* account for label number */
+		}
+		buf[pos] = new & 255;
 		break;
 	    }
-	    if(seg==0) ri+=2;
 	  }
 	}
-	*lreloc = adr;
+	*lreloc = pos;
 	return ++ri;
 }

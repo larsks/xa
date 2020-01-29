@@ -24,6 +24,7 @@
 #include  <stdlib.h>
 #include  <ctype.h>
 #include  <string.h>
+#include  <strings.h>
 
 #include  "xad.h"
 #include  "xah.h"
@@ -35,6 +36,9 @@
 #include  "xal.h"
 #include  "xat.h"
 #include  "xap.h"
+
+/* define this for recursive evaluation output */
+/* #define DEBUG_RECMAC */
 
 char s[MAXLINE];
 Datei *filep;
@@ -204,6 +208,23 @@ int pp_endif(char *t)
      return(0);
 }
 
+
+/* stub for handling CPP directives */
+int pp_cpp(char *t) {
+
+	if(sscanf(t, " %d \"%s\"", &filep->fline, filep->fname) == 2) {
+		/* massage it into our parameters and drop last quote */
+		char *u = "";
+
+		filep->fline--;
+		if((u = (char *)strrchr(filep->fname, '"')))
+			*u = '\0';
+		return (0);
+	} else {
+		return(E_SYNTAX);
+	}
+}
+
 /* pp_undef is a great hack to get it working fast... */
 int pp_undef(char *t) {
      int i;
@@ -352,7 +373,7 @@ int pp_define(char *k)
      t=h;     
 
      liste[rl].replace=mem;
-     strcpy(mem,t);
+     (void)strcpy(mem,t);
      mem+=strlen(t)+1;
 #if 0	/* debug */
      { char *ss;
@@ -419,7 +440,7 @@ int pp_replace(char *to, char *ti, int a,int b)
      int flag=!strncmp(ti,"TOUT",4);
      if(flag) printf("flag=%d\n",flag);
 */   
-     strcpy(t,ti);
+     (void)strcpy(t,ti);
 
      if(rlist)
      {
@@ -460,7 +481,7 @@ int pp_replace(char *to, char *ti, int a,int b)
                          
                          if(liste[n].p_anz)        
                          {
-                              strcpy(fti,liste[n].replace);
+                              (void)strcpy(fti,liste[n].replace);
 
                               if(rlist+liste[n].p_anz>=ANZDEF || memfre<MAXLINE*2)
                                    er=E_NOMEM;
@@ -508,12 +529,40 @@ int pp_replace(char *to, char *ti, int a,int b)
                                                   break;
                                              }
                                         }   
-/*
+#ifdef DEBUG_RECMAC
      printf("replace:\n");
      printf("%s=%s\n",liste[n].search,liste[n].replace);
-     for(i=0;i<liste[n].p_anz;i++)
-          printf("-%s=%s\n",liste[rlist+i].search,liste[rlist+i].replace);
-*/
+#endif
+     for(i=0;i<liste[n].p_anz;i++) {
+/* recursively evaluate arguments */
+	char nfto[MAXLINE];
+	char nfwas[MAXLINE];
+	int j = 0;
+	int k;
+
+	(void)strcpy(nfwas, liste[rlist+i].replace);
+	if (!er)
+		er=pp_replace(nfto,nfwas,-1,rlist);
+#ifdef DEBUG_RECMAC
+        printf("-%s=%s\n",liste[rlist+i].search,liste[rlist+i].replace);
+	printf("SUBB: -%s=%s\n", nfwas, nfto);
+#endif
+	while ((k = strcmp(nfto, nfwas))) {
+		(void)strcpy(nfto, nfwas);
+		if (!er)
+			er=pp_replace(nfto,nfwas,-1,rlist);
+		(void)strcpy(nfwas, nfto);
+#ifdef DEBUG_RECMAC
+		printf("SUBB2 (%i): -%s=%s\n", k, liste[rlist+i].replace, nfto);
+#endif
+		if (++j>10)
+			errout(E_ORECMAC);
+	}
+	(void)strcpy(liste[rlist+i].replace, nfto);
+#ifdef DEBUG_RECMAC
+        printf("FINAL: -%s=%s\n",liste[rlist+i].search,liste[rlist+i].replace);
+#endif
+    }
                                         if(!er)
                                              er=pp_replace(fto,fti,rlist,rlist+i);
 /*               if(flag) printf("sl=%d,",sl);*/
@@ -546,7 +595,7 @@ int pp_replace(char *to, char *ti, int a,int b)
                          }
 */
                          if(d)
-                              strcpy(t+sl+d,ti+sl);
+                              (void)strcpy(t+sl+d,ti+sl);
 
                          i=0;
                          while((c=rs[i]))
@@ -577,10 +626,9 @@ int pp_replace(char *to, char *ti, int a,int b)
                     if(i==sl)
                     {     
                          rs=liste[n].replace;
-/*                         
                          if(liste[n].p_anz)        
                          {
-                              strcpy(fti,liste[n].replace);
+                              (void)strcpy(fti,liste[n].replace);
                               if(rlist+liste[n].p_anz>=ANZDEF || memfre<MAXLINE*2)
                                    er=E_NOMEM;
                               else
@@ -628,7 +676,7 @@ int pp_replace(char *to, char *ti, int a,int b)
                                              }  
                                         }   
                                         if(!er)
-                                             er=pp_replace(fto,fti,rlist,rlist+i);
+                                             er=pp_replace(fto,fti,0,rlist+i);
                                         sl=(int)((long)y+1L-(long)t);
                                         rs=fto;
                                    }    
@@ -636,7 +684,6 @@ int pp_replace(char *to, char *ti, int a,int b)
                               if(er)
                                    return(er);     
                          }
-*/
                          d=(int)strlen(rs)-sl;
 
                          if(strlen(to)+d>=MAXLINE)
@@ -655,7 +702,7 @@ int pp_replace(char *to, char *ti, int a,int b)
                          }
 */
                          if(d)
-                              strcpy(t+sl+d,ti+sl);
+                              (void)strcpy(t+sl+d,ti+sl);
                               
                          i=0;
                          while((c=rs[i]))
@@ -710,7 +757,7 @@ int pp_open(char *name)
 	fprintf(stderr,"Oops, no more memory!\n");
 	exit(1);
      }	
-     strcpy(flist[0].fname,name);
+     (void)strcpy(flist[0].fname,name);
      flist[0].fline=0;
      flist[0].bdepth=b_depth();
      flist[0].filep=fp;
@@ -798,6 +845,7 @@ int pgetline(char *t)
 {
      int c,er=E_OK;
      int rlen, tlen;
+     char *p = 0;
 
      loopfl =0; /* set if additional fetch needed */
 
@@ -813,6 +861,10 @@ int pgetline(char *t)
 	  }
           if(in_line[0]=='#')
           {
+		if (in_line[1]==' ') { /* cpp comment -- pp_comand doesn't
+					handle this right */
+			er=pp_cpp(in_line+1);
+		} else {
                if((er=pp_comand(in_line+1)))
                {
                     if(er!=1)
@@ -821,16 +873,39 @@ int pgetline(char *t)
                          logout("\n");
                     }
                }
+		}
           } else
                er=1;
 
-          if(c==EOF)
+          if(c==EOF) {
+		if (loopfl && fsp) {
+			char bletch[MAXLINE];
+			sprintf(bletch, 
+		"at end of included file %s:\n", flist[fsp].fname);
+			logout(bletch);
+			errout(W_OPENPP);
+		}
                er=icl_close(&c);
+	}
 
      } while(!er || (loopfl && er!=E_EOF));
 
-     if(!er || loopfl)
+	if (loopfl) {
+		errout(E_OPENPP);
+	}
+
+     /* handle the double-slash comment (like in C++) */
+     p = index(in_line, '/');
+     if (p != NULL) {
+	if (p[1] == '/') {
+	    *p = 0;	/* terminate string */
+	}
+     }
+
+     if(!er || loopfl) {
           in_line[0]='\0';
+     }
+
      er= (er==1) ? E_OK : er ;
 
      if(!er)
@@ -854,6 +929,8 @@ int pgetline(char *t)
 /* this is the most disgusting code I have ever written, but Andre drove me
 to it because I can't think of any other F$%Y#*U(%&Y##^#KING way to fix the
 last line bug ... a very irritated Cameron */
+
+/* however, it also solved the problem of open #ifdefs not bugging out */
 
 /* #define DEBUG_EGETC */
 int egetc(FILE *fp) {

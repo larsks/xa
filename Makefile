@@ -41,7 +41,7 @@ clean:
 	(cd src && ${MAKE} clean)
 	(cd loader && ${MAKE} clean)
 	(cd misc && ${MAKE} mrproper)
-	rm -f xa *.exe
+	rm -f xa *.exe *.o65
 
 install: xa uncpk
 	$(MKDIR) $(BINDIR)
@@ -51,4 +51,4 @@ install: xa uncpk
 	#$(MKDIR) $(DOCDIR)/xa65
 
 dist: clean
-	cd .. ; tar cvf xa-2.3.0.tar xa-2.3.0 ; gzip xa-2.3.0.tar
+	cd .. ; tar cvf xa-2.3.2.tar xa-2.3.2 ; gzip xa-2.3.2.tar

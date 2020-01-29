@@ -1,4 +1,4 @@
-OBJ = xa.o xaa.o xal.o xap.o xat.o xar.o xar2.o xao.o xau.o xam.o
+OBJ = xa.o xaa.o xal.o xap.o xat.o xar.o xar2.o xao.o xau.o xam.o xacharset.o
 
 #CFLAGS=-W -Wall -pedantic -ansi  #-g
 CFLAGS=-W -Wall -ansi -O2
@@ -11,7 +11,7 @@ xa: ${OBJ}
 	${LD} -o ../xa ${OBJ} -lc
 
 clean: 
-	rm -f *.o
+	rm -f *.o *.o65
 
 mrproper: clean
 	rm -f ../xa

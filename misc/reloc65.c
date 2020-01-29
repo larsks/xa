@@ -51,7 +51,7 @@ typedef struct {
 
 int read_options(unsigned char *f);
 int read_undef(unsigned char *f);
-unsigned char *reloc_seg(unsigned char *f, int len, unsigned char *rtab, file65 *fp);
+unsigned char *reloc_seg(unsigned char *f, int len, unsigned char *rtab, file65 *fp, int undefwarn);
 unsigned char *reloc_globals(unsigned char *, file65 *fp);
 
 file65 file;
@@ -67,11 +67,15 @@ void usage(FILE *fp)
 		"               'd' for data, 'b' for bss and 'z' for zeropage) to the new\n"
 		"               address `addr'\n"
 		"  -o file    uses `file' as output file. Default is `a.o65'\n"
-		"  -x?        extracts text `?' = `t' or data `?' = `d' segment from file\n"
-		"               instead of writing back the whole file\n"
-		"  --version  output version information and exit\n"
-		"  --help     display this help and exit\n",
+		"  -x?        extracts text `?' = `t' or data `?' = `d' segment from file\n",
 		programname);
+	fprintf(fp,
+		"               instead of writing back the whole file\n"
+		"  -X         extracts the file such that text and data\n"
+		"               segments are chained, i.e. possibly relocating\n"
+		"               the data segment to the end of the text segment\n" 
+		"  --version  output version information and exit\n"
+		"  --help     display this help and exit\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -105,6 +109,9 @@ int main(int argc, char *argv[]) {
 	    case 'o':
 		if(argv[i][2]) outfile=argv[i]+2;
 		else outfile=argv[++i];
+		break;
+	    case 'X':
+		extract=3;
 		break;
 	    case 'b':
 		switch(argv[i][2]) {
@@ -184,7 +191,15 @@ int main(int argc, char *argv[]) {
 		  file.tdiff = tflag? tbase - file.tbase : 0;
 		  file.dbase = file.buf[13]*256+file.buf[12];
 		  file.dlen  = file.buf[15]*256+file.buf[14];
-		  file.ddiff = dflag? dbase - file.dbase : 0;
+		  if (extract == 3) {
+		    if (dflag) {
+	              fprintf(stderr,"reloc65: %s: Warning: data segment address ignored for -X option\n", argv[i]);
+		    } 
+		    dbase = file.tbase + file.tdiff + file.tlen;
+		    file.ddiff = dbase - file.dbase;
+		  } else {
+		    file.ddiff = dflag? dbase - file.dbase : 0;
+		  }
 		  file.bbase = file.buf[17]*256+file.buf[16];
 		  file.blen  = file.buf[19]*256+file.buf[18];
 		  file.bdiff = bflag? bbase - file.bbase : 0;
@@ -197,9 +212,10 @@ int main(int argc, char *argv[]) {
 		  file.utab  = file.segd + file.dlen;
 
 		  file.rttab = file.utab + read_undef(file.utab);
-
-		  file.rdtab = reloc_seg(file.segt, file.tlen, file.rttab, &file);
-		  file.extab = reloc_seg(file.segd, file.dlen, file.rdtab, &file);
+		  file.rdtab = reloc_seg(file.segt, file.tlen, file.rttab, 
+					&file, extract);
+		  file.extab = reloc_seg(file.segd, file.dlen, file.rdtab, 
+					&file, extract);
 
 		  reloc_globals(file.extab, &file);
 
@@ -229,7 +245,11 @@ int main(int argc, char *argv[]) {
 		    case 1:	/* text segment */
 			fwrite(file.segt, 1, file.tlen, fp);
 			break;
-		    case 2:
+		    case 2:	/* data segment */
+			fwrite(file.segd, 1, file.dlen, fp);
+			break;
+		    case 3:	/* text+data */
+			fwrite(file.segt, 1, file.tlen, fp);
 			fwrite(file.segd, 1, file.dlen, fp);
 			break;
 		    }
@@ -277,14 +297,18 @@ int read_undef(unsigned char *buf) {
 	n = buf[0] + 256*buf[1];
 	while(n){
 	  n--;
-	  while(!buf[l++]);
+	  while(buf[l] != 0) {
+		l++;
+	  }
+	  l++;
 	}
 	return l;
 }
 
 #define	reldiff(s)	(((s)==2)?fp->tdiff:(((s)==3)?fp->ddiff:(((s)==4)?fp->bdiff:(((s)==5)?fp->zdiff:0))))
 
-unsigned char *reloc_seg(unsigned char *buf, int len, unsigned char *rtab, file65 *fp) {
+unsigned char *reloc_seg(unsigned char *buf, int len, unsigned char *rtab, 
+			file65 *fp, int undefwarn) {
 	int adr = -1;
 	int type, seg, old, new;
 /*printf("tdiff=%04x, ddiff=%04x, bdiff=%04x, zdiff=%04x\n",
@@ -301,31 +325,38 @@ unsigned char *reloc_seg(unsigned char *buf, int len, unsigned char *rtab, file6
 /*printf("reloc entry @ rtab=%p (offset=%d), adr=%04x, type=%02x, seg=%d\n",rtab-1, *(rtab-1), adr, type, seg);*/
 	    rtab++;
 	    switch(type) {
-	    case 0x80:
+	    case 0x80:	/* WORD - two byte address */
 		old = buf[adr] + 256*buf[adr+1];
 		new = old + reldiff(seg);
 		buf[adr] = new & 255;
 		buf[adr+1] = (new>>8)&255;
 		break;
-	    case 0x40:
+	    case 0x40:	/* HIGH - high byte of an address */
 		old = buf[adr]*256 + *rtab;
 		new = old + reldiff(seg);
 		buf[adr] = (new>>8)&255;
 		*rtab = new & 255;
 		rtab++;
 		break;
-	    case 0x20:
+	    case 0x20:	/* LOW - low byt of an address */
 		old = buf[adr];
 		new = old + reldiff(seg);
 		buf[adr] = new & 255;
 		break;
 	    }
-	    if(seg==0) rtab+=2;
+	    if(seg==0) {
+		/* undefined segment entry */
+		if (undefwarn) {
+	          fprintf(stderr,"reloc65: %s: Warning: undefined relocation table entry not handled!\n", fp->fname);
+		}
+		rtab+=2;
+	    }
 	  }
 	}
 	if(adr > len) {
 	  fprintf(stderr,"reloc65: %s: Warning: relocation table entries past segment end!\n",
 		fp->fname);
+	  fprintf(stderr, "reloc65: adr=%x len=%x\n", adr, len);
 	}
 	return ++rtab;
 }

@@ -1,4 +1,4 @@
-.TH XA "1" "11 April 2006"
+.TH XA "1" "31 January 2007"
 
 .SH NAME
 xa \- 6502/R65C02/65816 cross-assembler
@@ -28,6 +28,7 @@ Use old filename behaviour (overrides
 .B \-e
 and
 .BR \-l ).
+This option is now deprecated.
 .TP
 .B \-C
 No CMOS opcodes (default is to allow R65C02 opcodes)
@@ -44,7 +45,7 @@ Show lines with block open/close (see
 .TP
 .B \-c
 Produce o65 object files instead of executable files
-(no linking performed); files may contain undefined references
+(no linking performed); files may contain undefined references.
 .TP
 .B \-o filename
 Set output filename. The default is 
@@ -67,7 +68,8 @@ Add cross-reference list to labellist (requires
 .BR \-l ).
 .TP
 .B \-M
-Allow colons to appear in comments; for MASM compatibility.
+Allow colons to appear in comments; for MASM compatibility. This does
+not affect colon interpretation elsewhere.
 .TP
 .B \-R
 Start assembler in relocating mode.
@@ -75,7 +77,7 @@ Start assembler in relocating mode.
 .B \-Llabel
 Defines
 .B label
-as an absolute (but undefined) label even when linking
+as an absolute (but undefined) label even when linking.
 .TP
 .B \-b? addr
 Set segment base for segment 
@@ -109,6 +111,10 @@ to the include path (before
 .BR XAINPUT ;
 see
 .BR ENVIRONMENT ).
+.TP
+.B \-O charset 
+Define the output charset for values in quotes. Currently supported are ASCII
+(default) and PETSCII.
 .TP
 .B \-\-help
 Show summary of options.
@@ -210,12 +216,13 @@ for block instructions). A label may also be hard-specified with the
 command line option.
 .LP
 For those instructions where the accumulator is the implied argument (such as
-.BR asl ,
-.BR lsr ,
+.B asl 
+and
+.BR lsr ;
 .B inc
 and
 .B dec
-on R65C02, etc.), the idiom of explicitly specifying the accumulator with
+on R65C02; etc.), the idiom of explicitly specifying the accumulator with
 .B a
 is unnecessary as the proper form will be selected if there is no explicit
 argument. In fact, for consistency with label handing, if there is a label
@@ -356,6 +363,8 @@ Comments are specified with a semicolon (;), such as
 .LP
 They can also be specified in the C language style, using
 .B /* */
+and
+.B //
 which are understood at the
 .B PREPROCESSOR
 level (q.v.).
@@ -380,6 +389,8 @@ is understood as a comment followed by an opcode. To defeat this, use the
 .B \-M
 command line option to allow colons within comments. This does not apply to
 .B /* */
+and
+.B //
 comments, which are dealt with at the preprocessor level (q.v.).
 
 .SH PSEUDO-OPS
@@ -396,13 +407,14 @@ The arguments may be expressions. Any number of bytes can be specified.
 .TP
 .B .asc """text1""","text2",...
 Specifies a character string which will be inserted into the assembled
-object. The characters are understood as true ASCII (i.e., they will not
-be converted into non-standard ASCII such as PETSCII for Commodore computers
-or ATASCII for Atari). If special encoding is needed, it should be specified
-explicitly using
+object. The characters are understood according to the currently specified
+character set; for example, if ASCII is specified, they will be rendered as
+ASCII, and if PETSCII is specified, they will be translated into the equivalent
+Commodore ASCII equivalent. Other non-standard ASCIIs such as ATASCII for
+Atari computers should be specified explicitly using their ASCII equivalents or
 .B .byt
-for the codes instead (including control and graphics characters). Note that
-for specifying the argument of an opcode,
+for other characters, such as control and graphics sequences. Note that
+when specifying the argument of an opcode,
 .B .asc
 is not necessary; the quoted character can simply be inserted (e.g.,
 .B lda #"A"
@@ -444,6 +456,32 @@ one level deep). Sixteen levels of scoping are permitted.
 .TP
 .B \&.)
 Closes a block.
+.TP
+.B \.as \.al \.xs \.xl
+Only relevant in 65816 mode (with the
+.B \-w
+option specified). These pseudo-ops set what size accumulator and X/Y-register
+should be used for future instructions;
+.B .as
+and
+.B .xs
+set 8-bit operands for the accumulator and index registers, respectively, and
+.B .al
+and
+.B .xl
+set 16-bit operands. These pseudo-ops on purpose do not automatically issue
+.B sep
+and
+.B rep
+instructions to set the specified width in the CPU;
+set the processor bits as you need, or consider constructing
+a macro.
+.B \.al
+and
+.B \.xl
+generate errors if
+.B \-w
+is not specified.
 .LP
 The following pseudo-ops apply primarily to relocatable .o65 objects.
 A full discussion of the relocatable format is beyond the
@@ -487,11 +525,53 @@ implements a preprocessor very similar to that of the C-language preprocessor
 and many oddiments apply to both. For example, as in C, the use of
 .B /* */
 for comment delimiters is also supported in
-.BR xa .
-.LP
+.BR xa ,
+and so are comments using the double slash
+.BR // .
 The preprocessor also supports continuation lines, i.e., lines ending with
 a backslash (\\); the following line is then appended to it as if there were
-no dividing newline.
+no dividing newline. This too is handled at the preprocessor level.
+.LP
+For reasons of memory and complexity, the full breadth of the
+.BR cpp (1)
+syntax is not fully supported. In particular, macro definitions may not
+be forward-defined (i.e., a macro definition can only reference a previously
+defined macro definition), except for macro functions, where recursive
+evaluation is supported; e.g., to
+.B #define WW AA
+,
+.B AA
+must have already been defined. Certain other directives are not supported,
+nor are most standard pre-defined macros, and there are other
+limits on evaluation and line length. Because the maintainers of
+.B xa
+recognize that some files will require more complicated preparsing than the
+built-in preprocessor can supply, the preprocessor will accept
+.BR cpp (1)-style
+line/filename/flags output. When these lines are seen in the input file,
+.B xa
+will treat them as
+.B cc
+would, except that flags are ignored. Note that passing your file through
+.BR cpp (1)
+will not allow you to use
+.BR xa 's
+non-standard directives, so you may need to add them manually to the output.
+.B xa
+does not accept files on standard input for parsing reasons, so you should
+dump your
+.BR cpp (1)
+output to an intermediate temporary file, such as
+.IP
+.B cc -E test.s > test.xa
+.br
+.B xa test.xa
+.LP
+No special arguments need to be passed to
+.BR xa ;
+the presence of
+.BR cpp (1)
+output is detected automatically.
 .LP
 The following preprocessor directives are supported.
 
@@ -541,7 +621,11 @@ would generate the expected result wherever an expression of the form
 appears in the source. This can also be specified on the command line with
 the
 .B \-D
-option.
+option. The arguments of a macro function may be recursively evaluated,
+unlike other
+.BR #define s;
+the preprocessor will attempt to re-evaluate any argument refencing
+another preprocessor definition up to ten times before complaining.
 .LP
 The following directives are conditionals. If the conditional is not
 satisfied, then the source code between the directive and its terminating
@@ -585,6 +669,9 @@ is defined
 assigned with a value.
 .I This works on labels, not macros!
 .LP
+Unclosed conditional blocks at the end of included files generate warnings;
+unclosed conditional blocks at the end of assembly generate an error.
+.LP
 .B #iflused
 and
 .B #ifldef
@@ -612,10 +699,10 @@ utilises the following environment variables, if they exist:
 
 .TP
 .B XAINPUT
-Include file path; components should be separated by `,'
+Include file path; components should be separated by `,'.
 .TP
 .B XAOUTPUT
-Output file path
+Output file path.
 
 .SH NOTES'N'BUGS
 The R65C02 instructions
@@ -674,10 +761,11 @@ may be undesirable.
 .BR dxa (1)
 
 .SH AUTHOR
-This manual page was written by David Weinehall <tao@acc.umu.se>
+This manual page was written by David Weinehall <tao@acc.umu.se>,
+Andre Fachat <fachat@web.de>
 and Cameron Kaiser <ckaiser@floodgap.com>.
 Original xa package (C)1989-1997 Andre Fachat. Additional changes
-(C)1989-2006 Andre Fachat, Jolse Maginnis, David Weinehall,
+(C)1989-2007 Andre Fachat, Jolse Maginnis, David Weinehall,
 Cameron Kaiser. The official maintainer is Cameron Kaiser.
 
 .SH WEBSITE

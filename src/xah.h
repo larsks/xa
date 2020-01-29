@@ -105,15 +105,19 @@ typedef struct {
 				 */
 #define E_ILLALIGN	-30	/* illegal align value */
 
-#define W_ADRRELOC	-32	/* word relocation in byte value */
-#define W_BYTRELOC	-33	/* byte relocation in word value */
-#define E_WPOINTER	-34	/* illegal pointer arithmetic!   */
-#define W_ADDRACC	-35	/* addr access to low or high byte pointer */
-#define W_HIGHACC	-36	/* high byte access to low byte pointer */
-#define W_LOWACC	-37	/* low byte access to high byte pointer */
-#define W_FORLAB	-38	/* no zp-optimization for a forward label */
-
 #define E_65816		-31
+
+#define E_ORECMAC	-32	/* exceeded recursion limit for label eval */
+#define E_OPENPP	-33	/* open preprocessor directive */
+
+#define W_ADRRELOC	-34	/* word relocation in byte value */
+#define W_BYTRELOC	-35	/* byte relocation in word value */
+#define E_WPOINTER	-36	/* illegal pointer arithmetic!   */
+#define W_ADDRACC	-37	/* addr access to low or high byte pointer */
+#define W_HIGHACC	-38	/* high byte access to low byte pointer */
+#define W_LOWACC	-39	/* low byte access to high byte pointer */
+#define W_FORLAB	-40	/* no zp-optimization for a forward label */
+#define W_OPENPP	-41	/* warning about open preprocessor directive */
 
 #define T_VALUE		-1
 #define T_LABEL		-2

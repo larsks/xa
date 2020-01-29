@@ -3,9 +3,10 @@ derivatives). xa is a small, fast, portable two-pass assembler that compiles
 under most ANSI C compilers. It is distributed under the GNU Public License
 (see COPYING).
 
-The current version is 2.3.0, which implements several bug fixes, compatibility
-improvements and new man-based documentation. It also completes the merge of
-the 65816 and 6502/R65C02 versions and can generate code for all targets now.
+The current version is 2.3.2, which implements several bug fixes over 2.3.0.
+2.3.0 itself features many compatibility improvements and new man-based
+documentation. It also completed the merge of the 65816 and 6502/R65C02
+versions and thus the current xa can generate code for all targets now.
 
 To install on a generic Unixy thing, you should be able to just type
 
@@ -14,7 +15,7 @@ To install on a generic Unixy thing, you should be able to just type
 This will create xa along with its various support utilities. Try assembling
 the cpk depacker in examples/ as a test. xa also comes with uncpk (a program
 for generating cpk archives) and printcbm (a program for listing Commodore
-BASIC test) and file65, ld65 and reloc65 for displaying, linking and
+BASIC test) and file65, ldo65 and reloc65 for displaying, linking and
 relocating o65 files in Andre's relocatable format (see doc/fileformats.txt).
 The loader/ directory also has goodies for managing relocatable binaries.
 

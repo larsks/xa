@@ -2,6 +2,7 @@
 	* = $0400
 
 q = $0005
+fizz
 /* these should be optimized to zero page */
 	sta $05
 	sta $0005
@@ -28,4 +29,5 @@ q = $0005
 
 
 breadbox	rts
-
+		bne fizz
+		rts
