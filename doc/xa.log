@@ -130,3 +130,12 @@ file mode appropriately.
 
 Changed o65 fileformat and adopted it in xa.
 
+******** xa-2.1.4g ******** 25nov1998 a.fachat
+
+Fix handling of !zeropageaddress, that was broken... (did not result
+in absolute address, but gave error message)
+
+Add cross reference list to labels if switched on on command line.
+Fix the filename when multiple files are given on the command line
+(used to give the first filename for all errors in the second pass...)
+

@@ -27,6 +27,7 @@ extern int masm, nolink;
 extern int noglob;
 extern int showblk;
 extern int relmode;
+extern int crossref;
 
 extern int tlen, tbase;
 extern int blen, bbase;

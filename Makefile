@@ -3,7 +3,7 @@
 #
 CC=gcc
 LD=gcc
-CFLAGS=-W -Wall -pedantic -ansi
+CFLAGS=-W -Wall -pedantic -ansi -g
 # CC=gcc-go32
 # LD=gcc-go32
 # CFLAGS=-W -Wall -pedantic 

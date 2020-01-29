@@ -50,11 +50,12 @@ int romable = 0;
 int romadr = 0;
 int noglob = 0;
 int showblk = 0;
+int crossref = 0;
 
 /* local variables */
 
 static const char *copyright={
-"Cross-Assembler 65xx V2.1.4f 20apr1998 (c) 1989-98 by A.Fachat\n"};
+"Cross-Assembler 65xx V2.1.4g 25nov1998 (c) 1989-98 by A.Fachat\n"};
 
 static char out[MAXLINE];
 static time_t tim1,tim2;
@@ -160,6 +161,9 @@ int main(int argc,char *argv[])
 		break;
 	  case 'L':		/* define global label */
 		if(argv[i][2]) lg_set(argv[i]+2);
+		break;
+	  case 'r':
+		crossref = 1;
 		break;
 	  case 'R':
 		relmode = 1; 
@@ -322,6 +326,12 @@ int main(int argc,char *argv[])
                  if(verbose) logout(out);
 
                  er=pp_open(ifile);
+                    puttmp(0);
+                    puttmp(T_FILE);
+                    puttmp(0);
+                    puttmp(0);
+                    puttmps((signed char*)&ifile, sizeof(filep->fname));
+
                  if(!er) {
                    er=pass1();
                    pp_close();
@@ -542,8 +552,18 @@ static int pass2(void)
                if(afile->mn.tmp[afile->mn.tmpe]==T_FILE)
                {
                     datei.fline=(afile->mn.tmp[afile->mn.tmpe+1]&255)+(afile->mn.tmp[afile->mn.tmpe+2]<<8);
+
+		    memcpy(&datei.fname, afile->mn.tmp+afile->mn.tmpe+3, sizeof(datei.fname));
+                    afile->mn.tmpe+=3+sizeof(datei.fname);
+/*
+		    datei.fname = malloc(strlen((char*) afile->mn.tmp+afile->mn.tmpe+3)+1);
+		    if(!datei.fname) {
+			fprintf(stderr,"Oops, no more memory\n");
+			exit(1);
+		    }
                     strcpy(datei.fname,(char*) afile->mn.tmp+afile->mn.tmpe+3);
                     afile->mn.tmpe+=3+strlen(datei.fname);
+*/
                }
           } else
           {
@@ -665,6 +685,7 @@ static void usage(void)
 	    "               A filename of '-' sets stdout as output file\n"
 	    " -e filename = sets errorlog filename, default is none\n"
 	    " -l filename = sets labellist filename, default is none\n"
+	    " -r          = adds crossreference list to labellist (if -l given)\n"
 	    " -M          = allow \":\" to appear in comments, for MASM compatibility\n"
 	    " -R          = start assembler in relocating mode\n"
 	    " -Llabel     = defines 'label' as absolute, undefined label even when linking\n"
@@ -797,8 +818,11 @@ static int getline(char *s)
                     puttmp(T_FILE);
                     puttmp((filep->fline)&255);
                     puttmp(((filep->fline)>>8)&255);
+		    puttmps((signed char*)&(filep->fname), sizeof(filep->fname));
+/*
                     puttmps((signed char*)filep->fname,
 					1+(int)strlen(filep->fname));
+*/
                     ec=E_OK;
                }
           } while(!ec && l[i]=='\0');

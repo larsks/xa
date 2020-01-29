@@ -20,7 +20,7 @@
 
 
 typedef struct {
-     char fname[MAXLINE];
+     char *fname;	/* fname[MAXLINE]; */
      int  fline;
      int  bdepth;
      FILE *filep;

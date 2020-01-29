@@ -28,6 +28,8 @@
 
 #include "xah.h"
 #include "xar.h"
+#include "xah2.h"
+#include "xap.h"
 #include "xa.h"
 
 /* externals */
@@ -113,12 +115,28 @@ void printllist(fp)
 FILE *fp;
 {
      int i;
-     
+     LabOcc *p;
+     char *fname = NULL;
+
      for(i=0;i<afile->la.lti;i++)
      {
-          ltp=afile->la.lt+i;
-          fprintf(fp,"%s, 0x%04x, %d, 0x%04x\n",ltp->n,ltp->val,ltp->blk, 
+         ltp=afile->la.lt+i;
+         fprintf(fp,"%s, 0x%04x, %d, 0x%04x\n",ltp->n,ltp->val,ltp->blk, 
 							ltp->afl);
+	 p = ltp->occlist;
+	 if(p) {
+	   while(p) {
+	     if(fname != p->fname) {
+		if(p!=ltp->occlist) fprintf(fp,"\n");
+		fprintf(fp,"    %s",p->fname);
+		fname=p->fname;
+	     }
+	     fprintf(fp," %d", p->line);
+	     p=p->next;
+	   }
+	   fprintf(fp,"\n");
+	 }
+	 fname=NULL;
      }
 }
 
@@ -258,8 +276,36 @@ int l_vget(int n, int *v, char **s)
      return 0;
 }
 
+void l_addocc(int n, int *v, int *afl) {
+     LabOcc *p, *pp;
+
+     ltp = afile->la.lt+n; 
+     pp=NULL;
+     p = ltp->occlist;
+     while(p) {
+	if (p->line == filep->fline && p->fname == filep->fname) return;
+	pp = p;
+	p = p->next;
+     }
+     p = malloc(sizeof(LabOcc));
+     if(!p) {
+	fprintf(stderr,"Oops, out of memory!\n");
+	exit(1);
+     }
+     p->next = NULL;
+     p->line = filep->fline;
+     p->fname = filep->fname;
+     if(pp) {
+       pp->next = p;
+     } else {
+       ltp->occlist = p;
+     }
+}
+
 int l_get(int n, int *v, int *afl)
 {
+     if(crossref) l_addocc(n,v,afl);
+
      ltp=afile->la.lt+n;
      (*v)=ltp->val;
      lz=ltp->n;
@@ -340,6 +386,7 @@ static int ll_def(char *s, int *n, int b)          /* definiert naechstes Label 
                ltp->blk=b;
                ltp->fl=0;
                ltp->afl=0;
+               ltp->occlist=NULL;
                hash=hashcode(s,j); 
                ltp->nextindex=afile->la.hashindex[hash];
                afile->la.hashindex[hash]=afile->la.lti;
@@ -423,7 +470,7 @@ int l_write(FILE *fp)
      }
      for (i=0;i<afile->la.lti;i++) {
         ltp=afile->la.lt+i;
-	if((!ltp->blk) && ltp->fl) {
+	if((!ltp->blk) && (ltp->fl==1)) {
 	  n++;
 	}
      }

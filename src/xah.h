@@ -29,6 +29,12 @@
 #define   ANZDEF    2340      /* mal 14 -> Byte , ANZDEF*14<32768       */
 #define   TMPMEM    200000L   /* Zwischenspeicher von Pass1 nach Pass 2 */
 
+typedef struct LabOcc {
+     struct LabOcc *next;
+     int line;
+     char *fname;
+} LabOcc;
+
 typedef struct {
      int blk;
      int val;
@@ -37,6 +43,7 @@ typedef struct {
      int afl;	/* 0 = no address (no relocation), 1 = address label */
      int nextindex;
      char *n;
+     struct LabOcc *occlist;
 } Labtab;
 
 typedef struct {
@@ -152,7 +159,7 @@ typedef struct relocateInfo {
                 int             lab;
 } relocateInfo;
 
-typedef struct {
+typedef struct File {
 		int	fmode;
 		int 	slen;
 		int	relmode;

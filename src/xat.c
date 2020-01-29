@@ -35,7 +35,7 @@
 
 int dsb_len = 0;
 
-static int t_conv(signed char*,signed char*,int*,int,int*,int*,int*,int);
+static int t_conv(signed char*,signed char*,int*,int,int*,int*,int*,int,int*);
 static int t_keyword(signed char*,int*,int*);
 static int tg_asc(signed char*,signed char*,int*,int*,int*,int*);
 static void tg_dez(signed char*,int*,int*);
@@ -212,7 +212,7 @@ static int opt[] ={ -1,-1,-1,-1,-1,-1,-1,-1,1,2,3,-1,4,5,-1,-1 }; /* abs -> zp *
 /* pass 1 */
 int t_p1(signed char *s, signed char *t, int *ll, int *al)
 {
-     static int er,l,n,v,nk,na1,na2,bl,am,sy,i,label; /*,j,v2 ;*/
+     static int er,l,n,v,nk,na1,na2,bl,am,sy,i,label,byte; /*,j,v2 ;*/
      int afl = 0;
 
      bl=0;
@@ -220,7 +220,7 @@ int t_p1(signed char *s, signed char *t, int *ll, int *al)
 
 /*     printf("\n"); */
 
-     er=t_conv(s,t,&l,pc[segment],&nk,&na1,&na2,0);
+     er=t_conv(s,t,&l,pc[segment],&nk,&na1,&na2,0,&byte);
 
      *ll=l;
 /*
@@ -382,7 +382,7 @@ printf(" wrote %02x %02x %02x %02x %02x %02x\n",
 	      er=E_ILLSEGMENT;
 	    }
 	  } else
-               er=t_p2(t,ll,1, al);
+               er=t_p2(t,ll,(byte==2)?0:1, al);
           
      } else
      if(er==E_NODEF)
@@ -430,6 +430,7 @@ printf(" wrote %02x %02x %02x %02x %02x %02x\n",
                          }
                     }
                }
+
           
                if(!bl)
                     er=E_SYNTAX;
@@ -911,7 +912,7 @@ int b_term(char *s, int *v, int *l, int pc)
      static signed char t[MAXLINE];
      int er,i,afl, label;
 
-     if(!(er=t_conv((signed char*)s,t,l,pc,&i,&i,&i,1)))
+     if(!(er=t_conv((signed char*)s,t,l,pc,&i,&i,&i,1,NULL)))
      {
           er=a_term(t,v,&i,pc,&afl,&label,0);
      
@@ -919,11 +920,14 @@ int b_term(char *s, int *v, int *l, int pc)
      return(er);
 }
      
-static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk, 
-			int *na1, int *na2, int af)  /* Pass1 von s nach t */
+static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
+                int *na1, int *na2, int af, int *bytep)  /* Pass1 von s nach t */
 {
-     static int p,q,ud,n,v,ll,mk,er,f;
-     static int operand,o,fl,afl;
+     static int v,f;
+     static int operand,o;
+     int fl,afl;
+     int p,q,ud,n,ll,mk,er;
+     int m, uz, byte;
 
      *nk=0;         /* Anzahl Komma               */
      *na1=0;        /* Anzahl "asc-texte"         */
@@ -932,10 +936,10 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
      er=E_OK;
      p=0;
      q=0;
-     ud=0;
+     ud = uz = byte =0;
      mk=0;          /* 0 = mehrere Kommas erlaubt */
      fl=0;          /* 1 = text einfach weitergeben */
-     afl=0;	    /* pointer flag for label */
+     afl=0;         /* pointer flag for label */
 
      while(s[p]==' ') p++;
 
@@ -963,7 +967,7 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                {
                     t[q++]=T_OP;
                     t[q++]=n&255;
-                    t[q++]=(n>>8)&255;  
+                    t[q++]=(n>>8)&255;
                     t[q++]='=';
                     p++;
                     ll=n=0;
@@ -979,17 +983,24 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                     ll=n=0;
                     break;
                } else
+               if(s[p]==':')
                {
-                    l_set(n,pc,segment);	/* set as address value */
+                    p++;
+                    while(s[p]==' ') p++;
+                    l_set(n,pc,segment);        /* set as address value */
+                    n=0;
+               } else
+               {
+                    l_set(n,pc,segment);        /* set as address value */
                     n=0;
                }
 
           }
-   
 
-          if(n<=Lastbef)
+          if((n & 0xff) <=Lastbef)
                mk=1;     /* 1= nur 1 Komma erlaubt     */
      }
+
      if(s[p]=='\0' || s[p]==';')
      {
           er=E_NOLINE;
@@ -999,20 +1010,43 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
      {
 
           p+=ll;
-          if(ll)
-               t[q++]=n;
+          if(ll) {
+             t[q++]= n & 0xff;
+/*
+             if( (n&0xff) == Kmacro) {
+                t[q++]= (n >> 8) & 0xff;
+             }
+*/
+          }
 
           operand=1;
-          
+
           while(s[p]==' ') p++;
 
           if(s[p]=='#')
           {
                mk=0;
                t[q++]=s[p++];
-               while(s[p]==' ')
-                    p++;
+               while(s[p]==' ') p++;
           }
+
+          /* this addresses forced high/low/two byte addressing, but only
+             for the first operand. Further processing is done in a_term()
+          */
+          if(s[p]=='<' || s[p]=='>') {
+              byte=1;
+              t[q++]=s[p++];
+              while(s[p]==' ') p++;
+          } else
+          if(s[p]=='!') {
+              byte=2;
+/*
+              t[q++]=s[p++];
+*/
+	      p++;
+              while(s[p]==' ') p++;
+          }
+
           while(s[p]!='\0' && s[p]!=';' && !er)
           {
                if(fl)
@@ -1020,12 +1054,12 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                     t[q++]=s[p++];
                } else
                {
-                 if(operand) 
+                 if(operand)
                  {
-                    if(s[p]=='(' || s[p]=='-' || s[p]=='>' || s[p]=='<')
+                    if(s[p]=='(' || s[p]=='-' || s[p]=='>' || s[p]=='<' || s[p]=='!')
                     {
                          t[q++]=s[p++];
-                         operand= -operand+1;
+                         operand= -operand+1;   /* invert to become reinverted */
                     } else
                     if(s[p]=='*')
                     {
@@ -1033,24 +1067,37 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                     } else
                     if(isalpha(s[p]) || s[p]=='_')
                     {
+                         m=n;
                          er=l_such((char*)s+p,&ll,&n,&v,&afl);
+/*
+                         if(m==Kglobl || m==Kextzero) {
+                              if(er==E_NODEF) {
+                                  er=E_OK;
+                              }
+                              t[q++]=T_LABEL;
+                              t[q++]=n & 255;
+                              t[q++]=(n>>8) & 255;
+                         } else
+*/
                          if(!er)
                          {
-			   if(afl) {
-			     t[q++]=T_POINTER;
+                           if(afl) {
+                             t[q++]=T_POINTER;
                              t[q++]=afl & 255;
                              t[q++]=v & 255;
                              t[q++]=(v>>8) & 255;
-			   } else {
+                           } else {
                              wval(q,v);
-			   }
-                         }
-                         else
+                           }
+                         } else
                          if(er==E_NODEF)
                          {
                               t[q++]=T_LABEL;
                               t[q++]=n & 255;
                               t[q++]=(n>>8) & 255;
+/*
+                              if(afl==SEG_ZEROUNDEF) uz++;
+*/
                               ud++;
                               er=E_OK;
                          }
@@ -1080,6 +1127,7 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                          p+=1+ll;
                          wval(q,v);
                          break;
+                    case '\'':
                     case '\"':
                          er=tg_asc(s+p,t+q,&q,&p,na1,na2);
                          break;
@@ -1104,7 +1152,7 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                     operand= -operand+1;
 
                  } else    /* operator    */
-                 { 
+                 {
                     o=0;
                     if(s[p]==')')
                     {
@@ -1185,7 +1233,7 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                     case '|':
                          if (s[p+1]=='|')
                               o=17;
-                         else   
+                         else
                               o=15;
                          break;
                     case '^':
@@ -1199,6 +1247,7 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
                     {
                          t[q++]=o;
                          p+=lp[o];
+                         uz++;  /* disables 8bit detection */
                     }
                     operand= -operand+1;
                  }
@@ -1209,11 +1258,23 @@ static int t_conv(signed char *s, signed char *t, int *l, int pc, int *nk,
      }
      if(!er)
      {
+          if(uz==1 && ud==1 && byte!=2) {
+               byte=1;
+	  }
+/*
+          if(byte == 1) {
+               t[q++] = T_FBYTE;
+          } else if(byte == 2) {
+               t[q++] = T_FADDR;
+          }
+*/
           t[q++]=T_END;
-          if(ud)
+          if(ud) {
                er=E_NODEF;
+          }
      }
      *l=q;
+     if(bytep) *bytep=byte;
 
      return(er);
 }

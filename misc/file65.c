@@ -28,6 +28,7 @@
 #define	BUF	(9*4+8)
 
 int read_options(FILE *fp);
+int print_labels(FILE *fp, int offset);
 
 unsigned char hdr[BUF];
 unsigned char cmp[] = { 1, 0, 'o', '6', '5' };
@@ -35,9 +36,10 @@ unsigned char cmp[] = { 1, 0, 'o', '6', '5' };
 int xapar = 0;
 int rompar = 0;
 int romoff = 0;
+int labels = 0;
 
 void usage(void) {
-	printf("file65: prints file information on 'o65' files\n"
+	printf("list65: prints file information on 'o65' files\n"
 		"  file65 [options] [filenames...]\n"
 		"options:\n"
 		"  -v        = print version number\n"
@@ -48,6 +50,7 @@ void usage(void) {
 		"              in the same ROM. Add offset to start address.\n"
 		"  -A offset = same as '-a', but only print the start address of the next\n"
 		"              file in the ROM.\n"
+		"  -V        = print undefined and global labels\n"
 	);
 	exit(0);
 }
@@ -62,6 +65,9 @@ int main(int argc, char *argv[]) {
 	  if(argv[i][0]=='-') {
 	    /* process options */
 	    switch(argv[i][1]) {
+	    case 'V':
+		labels = 1;
+		break;
 	    case 'v':
 		printf("file65: Version 0.2\n");
 		break;
@@ -106,7 +112,6 @@ int main(int argc, char *argv[]) {
 		  if(n<18) {
 	            fprintf(stderr,"file65: %s: truncated file\n", argv[i]);
 		  } else {
-		    hlen = 8+18+read_options(fp);
 		    if(!xapar && !rompar) {
 		      printf(" text segment @ $%04x - $%04x [$%04x bytes]\n", hdr[9]*256+hdr[8], hdr[9]*256+hdr[8]+hdr[11]*256+hdr[10], hdr[11]*256+hdr[10]);
 		      printf(" data segment @ $%04x - $%04x [$%04x bytes]\n", hdr[13]*256+hdr[12], hdr[13]*256+hdr[12]+hdr[15]*256+hdr[14], hdr[15]*256+hdr[14]);
@@ -114,8 +119,13 @@ int main(int argc, char *argv[]) {
 		      printf(" zero segment @ $%04x - $%04x [$%04x bytes]\n", hdr[21]*256+hdr[20], hdr[21]*256+hdr[20]+hdr[23]*256+hdr[22], hdr[23]*256+hdr[22]);
 		      printf(" stack size $%04x bytes %s\n", hdr[25]*256+hdr[24],
 				(hdr[25]*256+hdr[24])==0?"(i.e. unknown)":"");
+		      if(labels) {
+			read_options(fp);
+			print_labels(fp,  hdr[11]*256+hdr[10] +  hdr[15]*256+hdr[14]);
+		      }
 		    } else {
 		      struct stat fbuf;
+		      hlen = 8+18+read_options(fp);
 		      stat(argv[i],&fbuf);
 		      if(xapar) {
 			if(!rompar) printf("-bt %d ",
@@ -157,18 +167,114 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
+static struct { int opt; int strfl; char *string; } otab[] = {
+	{ 0, 1, "Filename" },
+	{ 1, 0, "O/S Type" },
+	{ 2, 1, "Assembler" },
+	{ 3, 1, "Author" },
+	{ 4, 1, "Creation Date" },
+	{ -1 }
+};
+ 
+void print_option(unsigned char *buf, int len) {
+	int i, strfl=0;
+	for(i=0;otab[i].opt>=0; i++) if(*buf==otab[i].opt) break;
+	if(otab[i].opt>=0) {
+	    printf("fopt: %-17s: ", otab[i].string);
+	    strfl = otab[i].strfl;
+	} else {
+	    printf("fopt: Unknown Type $%02x : ", (*buf & 0xff));
+	}
+	if(strfl) {
+	    buf[len]=0;
+	    printf("%s\n", buf+1);
+	} else {
+	    for (i=1; i<len-1; i++) {
+		printf("%02x ", buf[i] & 0xff);
+	    }
+	    printf("\n");
+	}
+}
 
 int read_options(FILE *fp) {
 	int c, l=0;
-	char tb[256];
+	unsigned char tb[256];
 
 	c=fgetc(fp); l++;
 	while(c && c!=EOF) {
 	  c&=255;
 	  fread(tb, 1, c-1, fp);
+	  if(labels) print_option(tb, c);
 	  l+=c;
 	  c=fgetc(fp);
 	}
 	return l;
 }
+
+int print_labels(FILE *fp, int offset) {
+	int i, nud, c, seg, off;
+
+/* printf("print_labels:offset=%d\n",offset); */
+
+	fseek(fp, offset, SEEK_CUR);
+
+	nud = (fgetc(fp) & 0xff);
+	nud += ((fgetc(fp) << 8) & 0xff00);
+
+	printf("Undefined Labels: %d\n", nud);
+
+	if(nud) {
+	  do {
+	    c=fgetc(fp);
+	    while(c && c!=EOF) {
+	 	fputc(c, stdout);
+	        c=fgetc(fp);
+	    }
+	    printf("\t");
+	  } while(--nud);
+	  printf("\n");
+	}
+
+	for(i=0;i<2;i++) {
+	 c=fgetc(fp);
+	 while(c && c!=EOF) {
+	  c&= 0xff;
+	  while(c == 255 && c!= EOF) {
+	    c=fgetc(fp);
+	    if(c==EOF) break;
+	    c&= 0xff;
+	  }
+	  if(c==EOF) break;
+
+	  c=fgetc(fp);
+	  if( (c & 0xe0) == 0x40 ) fgetc(fp);
+	  if( (c & 0x07) == 0 ) { fgetc(fp); fgetc(fp); }
+
+	  c=fgetc(fp);
+	 }
+	}
+
+	nud = (fgetc(fp) & 0xff);
+	nud += ((fgetc(fp) << 8) & 0xff00);
+	printf("Global Labels: %d\n", nud);
+
+	if(nud) {	
+	  do {
+	    c=fgetc(fp);
+	    while(c && c!=EOF) {
+	 	fputc(c, stdout);
+	        c=fgetc(fp);
+	    }
+	    if(c==EOF) break;
+
+	    seg = fgetc(fp) & 0xff;
+	    off= (fgetc(fp) & 0xff);
+	    off+= ((fgetc(fp) << 8) & 0xff00);
+	    printf(" (segID=%d, offset=%04x)\n", seg, off);
+		 
+	  } while(--nud);
+	}
+	return 0;
+}	
+
 

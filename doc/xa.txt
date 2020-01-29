@@ -76,6 +76,8 @@ xa [options] Source1 [Source2 ...]
 '-o filename'   set output filename
 '-e filename'   set errorlog filename
 '-l filename'   set labellist filename
+'-r'            add crossreference list to labellist output
+                (i.e list of filename/line where label is used)
 '-M'            allow ':' to appear in comments after a semicolon (MASM mode)
 '-b? adr'       set segment start address for ? = t(ext), d(ata), b(ss) or
                 z(ero) segment.
