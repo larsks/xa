@@ -1,15 +1,13 @@
 
      _________________________________________________________________
    
-                              XA 2.1.4 + 65816
+                                  XA 2.1.4
                                       
-                        6502/R65C02 Cross Assembler
+                          65(c)02 Cross Assembler
                                       
                               (c) Andre Fachat
                                       
                    email: fachat@galileo.rhein-neckar.de
-                                      
-    65816 opcodes Jolse Maginnis email: jmaginni@postoffice.utas.edu.au
      _________________________________________________________________
    
     1. what it is
@@ -18,7 +16,6 @@
     4. pseudo-opcodes, block structures and where labels are valid
     5. pre-processor
     6. utilities
-    7. 65816 addendum
        
      * literature
      _________________________________________________________________
@@ -53,7 +50,6 @@
    RAM and Harddisk. (Well, the Atari is not fast. On my 486DX4/100 it
    takes about 2 seconds...) But adding the whole relocation stuff slowed
    it down again.
-     _________________________________________________________________
    
   Parameters and features
   
@@ -117,7 +113,6 @@ xa [options] Source1 [Source2 ...]
    assembler run, all the error messages and the stuff being printed with
    #echo and #print and last but not least a statistics of used
    resources.
-     _________________________________________________________________
    
   6502 Assembler
   
@@ -194,7 +189,6 @@ LDA  #<adresse
    comment and starts a new statement. In MASM compatibility mode ('-M'
    command line option), then a colon in a comment is ignored, i.e. the
    comment lasts till the newline.
-     _________________________________________________________________
    
   Pseudo opcodes, Block structures and where Labels are valid
   
@@ -278,8 +272,7 @@ label8:   sta label2       ; As ':' divides opcodes, this is also
    
 -sysmem   +=4  ; here you can use ==, +=, -=, *=, /=, &=, |=
 -syszp    =123
-     _________________________________________________________________
-   
+
   Preprocessor
   
    The preprocessor is very close to the one of the language C. So in
@@ -337,7 +330,6 @@ label     lda #0
    The preprocessor also allows continuation lines. I.e. lines that end
    with a '\' directly before the newline have the following line
    concatenated to it.
-     _________________________________________________________________
    
   Utilities
   
@@ -353,55 +345,7 @@ ld65    : a linker for o65 files. The given files are linked together and
           are put in the new file. There must not be any undefined reference
           left, otherwise the output file is corrupt, because
           for now, ld65 cannot produce object files. But you get a warning.
-     _________________________________________________________________
-   
-  65816 Addendum
-  
-   Jolse Maginnis was so nice to implement the WD65816 opcodes into the
-   xa assembler. There are some extras for the assembler itself. Also
-   there is a description of the 65816 processor and its programming.
 
-
-All 65816 addressing modes have been added to XA, including:
-(Direct page is the same as zero page, apart from the fact that Zero
-page can be moved on 65816)
-
-Long                            LDA long
-
-Direct page indirect            LDA (dp)
-
-Direct Page indirect Long       LDA [dp]
-
-Absolute long indexed,Y         LDA long,x
-
-DP indirect long indexed,Y      LDA [dp],y
-
-Stack relative                  LDA sr,S
-
-SR Indirect Indexed,Y           lda (sr,S),Y
-
-The MVN and MVP opcodes do however not use the syntax: MVN src,dest
-but instead just use: MVN absolute, so for example MVN $10,$00 would
-be MVN $0010.
-
-The psuedo ops .as, .al, .xs & .xl are used to decide what size
-accumulator and index mode for the assembler to use. .as and .xs are
-for 8bit operands, and .al and .xl are for 16 bit operands.
-
-In addition to the new modes, the symbols ! and @ can be used to force
-16bit and 24bit addressing respectively. So:
-
-LDA @$ff00
-would be a long address rather than an absolute address.
-
-and:
-
-STA !$f0
-would be a 16bit address rather than Direct Page.
-
-use -W on the command line to force no 65816 opcodes.
-     _________________________________________________________________
-   
   Literature
   
      * "Das Maschinensprachebuch zum Commodore 64"

@@ -130,10 +130,3 @@ file mode appropriately.
 
 Changed o65 fileformat and adopted it in xa.
 
-******** xa-2.1.4e + 65816 ******** 28oct1998 a.fachat/j.maginnis
-
-Jolse Maginnis implemented the 65816 opcodes :-))
-The tools do not yet support 32 bit .o65 files, though.
-
-
-

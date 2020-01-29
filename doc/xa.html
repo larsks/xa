@@ -1,28 +1,25 @@
 <html><head><title> xa 2.1.4 6502 Cross Assembler </title></head>
 <body bgcolor="#ffffff">
 <hr>
-<h1 align=center> XA 2.1.4 + 65816</h1>
-<h2 align=center> 6502/R65C02 Cross Assembler </h2>
+<h1 align=center> XA 2.1.4 </h1>
+<h2 align=center> 65(c)02 Cross Assembler </h2>
 <h2 align=center> (c) Andre Fachat </h2>
 <h2 align=center> email: fachat@galileo.rhein-neckar.de </h2>
-<h2 align=center> 65816 opcodes Jolse Maginnis 
-email: jmaginni@postoffice.utas.edu.au </h2> 
 <hr>
 <ol>
-<li> <a href="#desc">what it is</a>
-<li> <a href="#options">parameters and features</a>
-<li> <a href="#assembler">6502 Assembler</a>
-<li> <a href="#popcodes">pseudo-opcodes, block structures and where labels are valid</a>
-<li> <a href="#preprocessor">pre-processor</a>
-<li> <a href="#utilities">utilities</a>
-<li> <a href="#xa65816">65816 addendum</a>
+<li> what it is
+<li> parameters and features
+<li> 6502 Assembler
+<li> pseudo-opcodes, block structures and where labels are valid
+<li> pre-processor
+<li> utilities
 </ol><ul> 
-<li> <a href="#literature">literature</a>
+<li> literature 
 </ul>
 
 <hr>
 
-<h3><a name="desc"></a>What it is </h3>
+<h3> What it is </h3>
 
 This Cross-Assembler makes programms for another computer that has a 6502-like
 CPU. This CPU has been widely used in the famous Apple II, all the Commodore
@@ -51,8 +48,7 @@ less then 2 Minutes on an 8 MHz Atari ST with 2.5 MByte RAM and Harddisk.
 (Well, the Atari is not fast. On my 486DX4/100 it takes about 2 seconds...)
 But adding the whole relocation stuff slowed it down again.
 <p>
-<hr>
-<h3><a name="options"></a>Parameters and features</h3>
+<h3> Parameters and features</h3>
 
 The assembler contains only a single programm called "xa" (for Atari: XA.TTP).
 It takes one or more Source files into one object file, that can directly
@@ -116,8 +112,7 @@ assembler run, all the error messages and the stuff being printed
 with #echo and #print and last but not least a statistics of used
 resources.
 
-<hr>
-<h3><a name="assembler"></a>6502 Assembler </h3>
+<h3> 6502 Assembler </h3>
 
 xa supports both the standard 6502 opcodes as well as the CMOS versions
 (Rockwell 65c02). Not supported are the 6502 undocumented opcodes, they have
@@ -192,8 +187,7 @@ comment and starts a new statement.
 In MASM compatibility mode ('-M' command line option), then a colon
 in a comment is ignored, i.e. the comment lasts till the newline.
 <p>
-<hr>
-<h3><a name="popcodes"></a>Pseudo opcodes, Block structures and where Labels are valid </h3>
+<h3> Pseudo opcodes, Block structures and where Labels are valid </h3>
 
 In addition to the 6502 opcodes you have the following Pseudo opcodes:      
 <p><pre>
@@ -279,8 +273,7 @@ Redefinition of a label is possible by proceeding it with a dash '-'.
 -syszp    =123
 </pre>     
 
-<hr>
-<h3><a name="preprocessor"></a>Preprocessor </h3>
+<h3> Preprocessor </h3>
 
 The preprocessor is very close to the one of the language C.
 So in addition to the ';'-comments you can also use C-like
@@ -338,8 +331,7 @@ The preprocessor also allows continuation lines. I.e. lines that end
 with a '\' directly before the newline have the following line
 concatenated to it.
 <p>
-<hr>
-<h3><a name="utilities"></a>Utilities </h3>
+<h3> Utilities </h3>
 
 There now are a few utilities that come with the assembler:
 <p><pre>
@@ -355,59 +347,7 @@ ld65	: a linker for o65 files. The given files are linked together and
 	  for now, ld65 cannot produce object files. But you get a warning.
 </pre>
 <p>
-<hr>
-<h3><a name="xa65816"></a>65816 Addendum</h3>
-<p>
-Jolse Maginnis was so nice to implement the WD65816 opcodes into 
-the xa assembler. There are some <a href="65816 extras.txt">extras</a>
-for the assembler itself. Also there is a 
-<a href="65816info.txt">description</a> of the 65816 processor and its 
-programming.
-
-<pre>
-
-All 65816 addressing modes have been added to XA, including:
-(Direct page is the same as zero page, apart from the fact that Zero 
-page can be moved on 65816)
-
-Long				LDA long
-
-Direct page indirect		LDA (dp)
-
-Direct Page indirect Long	LDA [dp]
-
-Absolute long indexed,Y		LDA long,x
-
-DP indirect long indexed,Y	LDA [dp],y
-
-Stack relative			LDA sr,S
-
-SR Indirect Indexed,Y		lda (sr,S),Y
-
-The MVN and MVP opcodes do however not use the syntax: MVN src,dest 
-but instead just use: MVN absolute, so for example MVN $10,$00 would 
-be MVN $0010.
-
-The psuedo ops .as, .al, .xs & .xl are used to decide what size 
-accumulator and index mode for the assembler to use. .as and .xs are 
-for 8bit operands, and .al and .xl are for 16 bit operands.
-
-In addition to the new modes, the symbols ! and @ can be used to force 
-16bit and 24bit addressing respectively. So:
-
-LDA @$ff00
-would be a long address rather than an absolute address.
-
-and:
-
-STA !$f0 
-would be a 16bit address rather than Direct Page.
-
-use -W on the command line to force no 65816 opcodes.
-
-</pre>
-<hr>
-<h3><a name="literature"></a>Literature </h3>
+<h3> Literature </h3>
 <ul>
 <li> "Das Maschinensprachebuch zum Commodore 64" <br>
      Lothar Englisch, Data Becker GmbH

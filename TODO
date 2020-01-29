@@ -4,5 +4,3 @@
 - -L option for ld65, such that globals can be suppressed but KERNEL can be
   kept
 
-- support 65816 32 bit files with the tools.
-

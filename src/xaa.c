@@ -41,7 +41,6 @@ static int get_op(signed char*,int*);
 static int do_op(int*,int,int);
 
 #define   cval(s)   256*((s)[1]&255)+((s)[0]&255)
-#define   lval(s)   65536*((s)[2]&255)+256*((s)[1]&255)+((s)[0]&255)
 
 int a_term(signed char *s, int *v, int *l, int xpc, int *pfl, int *label, int f)
 {
@@ -66,7 +65,7 @@ int a_term(signed char *s, int *v, int *l, int xpc, int *pfl, int *label, int f)
 	  if(afl) *pfl=A_LOW | ((afl<<8) & A_FMASK);
           *v = *v & 255;
      } else
-     if(s[pp]=='>')
+     if(s[0]=='>')
      {    
           pp++;
           er=ag_term(s,P_START,v,&afl, label);
@@ -135,8 +134,8 @@ static int ag_term(signed char *s, int p, int *v, int *nafl, int *label)
      else
      if(s[pp]==T_VALUE)
      {
-          *v=lval(s+pp+1);
-          pp+=4;
+          *v=cval(s+pp+1);
+          pp+=3;
 /* printf("value: v=%04x\n",*v); */
      }
      else
@@ -159,7 +158,7 @@ static int ag_term(signed char *s, int p, int *v, int *nafl, int *label)
 
      *v *= mf;
 
-     while(!er && s[pp]!=')' && s[pp]!=']' && s[pp]!=',' && s[pp]!=T_END)
+     while(!er && s[pp]!=')' && s[pp]!=',' && s[pp]!=T_END)
      {
           er=get_op(s,&o);
 
