@@ -19,12 +19,9 @@
 */
 
 
-typedef struct {
-     char fname[MAXLINE];
-     int  fline;
-     int  bdepth;
-     FILE *filep;
-     char *flinep;
-} Datei;
 
+extern FILE *xfopen(const char *fn,const char *mode);
+extern int m_init(void);
+extern void m_exit(void);
+extern int m_alloc(long n, char **adr);
 

@@ -19,12 +19,25 @@
 */
 
 
-typedef struct {
-     char fname[MAXLINE];
-     int  fline;
-     int  bdepth;
-     FILE *filep;
-     char *flinep;
-} Datei;
+extern void errout(int er);
+extern void logout(char *s);
 
+extern int ncmos,cmosfl;
+extern int masm, nolink;
+extern int noglob;
+extern int showblk;
+extern int relmode;
+
+extern int tlen, tbase;
+extern int blen, bbase;
+extern int dlen, dbase;
+extern int zlen, zbase;
+extern int romable, romadr;
+
+extern int segment;
+extern int pc[SEG_MAX];
+
+extern int h_length(void);
+
+extern void set_align(int align_value);
 

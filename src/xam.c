@@ -1,30 +1,36 @@
+
+/*
+    xa65 - 6502 cross assembler and utility suite
+    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
  
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "xah.h"         /*   structs        */
-/*#include <tos.h>*/
  
-#define	strlen(a)		((int)(strlen(a)))
-
-/*
-#define	MAXLINE		200
-#define	BUFSIZE		4096
-
-#define	getenv(a)		get_env(a)
-
-FILE *xfopen(const char *filename,const char *mode);
-void ini_env(char **envp);
-void put_env(char *envar,char *enval);
-char *get_env(char*);
-*/
 
 FILE *xfopen(const char *fn,const char *mode)
 {
 	FILE *file;
 	char c,*cp,n[MAXLINE],path[MAXLINE];
 	char xname[MAXLINE], n2[MAXLINE];
-	int i,l=strlen(fn);
+	int i,l=(int)strlen(fn);
 	for(i=0;i<l+1;i++) {
 	  xname[i]=((fn[i]=='\\')?DIRCHAR:fn[i]);
 	}
@@ -42,7 +48,7 @@ FILE *xfopen(const char *fn,const char *mode)
 				if(cp[0])
 				{
 					strcpy(n,cp);
-					c=n[strlen(n)-1];
+					c=n[(int)strlen(n)-1];
 					if(c!=DIRCHAR&&c!=':')
 						strcat(n,DIRCSTRING);
 					strcpy(n2,n);
@@ -62,7 +68,7 @@ FILE *xfopen(const char *fn,const char *mode)
 			strcpy(n,cp);
 			if(n[0])
 			{
-				c=n[strlen(n)-1];
+				c=n[(int)strlen(n)-1];
 				if(c!=DIRCHAR&&c!=':')
 					strcat(n,DIRCSTRING);
 			}
@@ -87,17 +93,19 @@ FILE *xfopen(const char *fn,const char *mode)
 	return(file);		
 }
 
-char *m_base;
-char *m_act;
-char *m_end;
+#if 0
 
-int m_init() 
+static char *m_base;
+static char *m_act;
+static char *m_end;
+
+int m_init(void) 
 {
      int er=E_NOMEM;
 
      m_base=m_end=m_act=0L;
 /*
-     printf("MEMLEN=%ld\n",MEMLEN);
+     fprintf(stderr, "MEMLEN=%ld\n",MEMLEN);
      getchar();
 */    
 /*
@@ -121,9 +129,7 @@ void m_exit(void)
 */
 }
 
-m_alloc(n,adr)
-long n;
-char **adr;
+int m_alloc(long n, char **adr)
 {
      int er=E_NOMEM;
 
@@ -139,9 +145,10 @@ char **adr;
      }
 */
 /*
-     printf("m_alloc n=%ld adr=%lx\n",n,*adr);
+     fprintf(stderr, "m_alloc n=%ld adr=%lx\n",n,*adr);
      getchar();
 */     
      return(er);
 }
 
+#endif

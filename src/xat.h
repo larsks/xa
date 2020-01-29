@@ -18,13 +18,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+extern int dsb_len;
 
-typedef struct {
-     char fname[MAXLINE];
-     int  fline;
-     int  bdepth;
-     FILE *filep;
-     char *flinep;
-} Datei;
-
+extern int t_p1(signed char *s, signed char *t, int *ll, int *al);
+extern int t_p2(signed char *t, int *ll, int fl, int *al);
+extern int b_term(char *s, int *v, int *l, int pc);
 

@@ -1,76 +1,112 @@
+
+/*
+    xa65 - 6502 cross assembler and utility suite
+    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
  
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
+
+/* structs and defs */
+
 #include "xah.h"
+#include "xar.h"
+#include "xa.h"
 
-extern int m_alloc(long,char**);
-int b_fget(int*,int);
-int ll_such(char*,int*);
-int b_ltest(int,int);
-int ll_def(char*,int*,int);
-int l_get(int,int*);
-int b_get(int*);
-int b_test(int);
-void ll_exblk(int,int);
+/* externals */
 
-/* now in xah.h
-typedef struct {
-     int blk;
-     int val;
-     int len;
-     int fl;  
-     int nextindex;
-     char *n;
-} Labtab;
-*/
+#include "xam.h"
+#include "xal.h"
+
+/* exported globals */
+
+char   *lz;
+
+/* local prototypes */
+
+static int b_fget(int*,int);
+static int b_ltest(int,int);
+static int b_get(int*);
+static int b_test(int);
+static int ll_def(char *s, int *n, int b);     
 
 #define   hashcode(n,l)  (n[0]&0x0f)|(((l-1)?(n[1]&0x0f):0)<<4)
 
-static int hashindex[256];
-char   *lt;
-char   *ln;
-char   *lz;
-int    lti;
-unsigned long lni;
-long   sl;
-Labtab *ltp;
+/* local variables */
 
-int l_init()
+/*
+static int hashindex[256];
+static Labtab *lt = NULL;
+static int    lti = 0;
+static int    ltm = 0;
+*/
+
+/*
+static char   *ln;
+static unsigned long lni;
+static long   sl;
+*/
+
+static Labtab *ltp;
+
+int l_init(void)
 {
+	return 0;
+#if 0
      int er;
 
      for(er=0;er<256;er++)
           hashindex[er]=0;
 
-     sl=(long)sizeof(Labtab);
+     /*sl=(long)sizeof(Labtab);*/
      
-     if(!(er=m_alloc((long)(sizeof(Labtab)*ANZLAB),&lt)))
-          er=m_alloc((long)LABMEM,&ln);
+/*     if(!(er=m_alloc((long)(sizeof(Labtab)*ANZLAB),(char**)&lt)))
+          er=m_alloc((long)LABMEM,&ln);*/
+
+     er=m_alloc((long)(sizeof(Labtab)*ANZLAB),(char**)&lt);
           
      lti=0;
-     lni=0L;
+/*     lni=0L;*/
 
      return(er);
+#endif
 }
 
-int ga_lab()
+int ga_lab(void)
 {
-	return(lti);
+	return(afile->la.lti);
 }
 
-int gm_lab()
+int gm_lab(void)
 {
 	return(ANZLAB);
 }
 
-long gm_labm()
+long gm_labm(void)
 {
 	return((long)LABMEM);
 }
 
-long ga_labm()
+long ga_labm(void)
 {
-	return(lni);
+	return(0 /*lni*/);
 }
 
 void printllist(fp)
@@ -78,16 +114,33 @@ FILE *fp;
 {
      int i;
      
-     for(i=0;i<lti;i++)
+     for(i=0;i<afile->la.lti;i++)
      {
-          ltp=(Labtab*)(lt+i*sl);
-          fprintf(fp,"%s, %d, %d\n",ltp->n,ltp->blk,ltp->val);
+          ltp=afile->la.lt+i;
+          fprintf(fp,"%s, 0x%04x, %d, 0x%04x\n",ltp->n,ltp->val,ltp->blk, 
+							ltp->afl);
      }
 }
+
+int lg_set(char *s ) {
+	int n, er;
+
+	er = ll_such(s,&n);
+
+	if(er==E_OK) {
+	  fprintf(stderr,"Warning: global label doubly defined!\n");
+	} else {
+          if(!(er=ll_def(s,&n,0))) {
+            ltp=afile->la.lt+n;
+            ltp->fl=2;
+            ltp->afl=SEG_UNDEF;
+          }
+      	}
+	return er;
+}
+
           
-l_def(s,l,x,f)
-char *s;
-int *l,*f,*x;
+int l_def(char *s, int *l, int *x, int *f)
 {     
      int n,er,b,i=0;
  
@@ -124,7 +177,7 @@ int *l,*f,*x;
                
           if(er==E_OK)
           {
-               ltp=(Labtab*)(lt+n*sl);
+               ltp=afile->la.lt+n;
                
                if(*f)
                {
@@ -145,7 +198,7 @@ int *l,*f,*x;
           {
                if(!(er=ll_def(s+i,&n,b))) /* ll_def(...,*f) */
                {
-                    ltp=(Labtab*)(lt+n*sl);
+                    ltp=afile->la.lt+n;
                     *l=ltp->len+i;
                     ltp->fl=0;
                }
@@ -156,20 +209,21 @@ int *l,*f,*x;
      return(er);
 }
 
-l_such(s,l,x,v)
-char *s;
-int *l,*v,*x;
+int l_such(char *s, int *l, int *x, int *v, int *afl)
 {
      int n,er,b;
 
+     *afl=0;
+
      er=ll_such(s,&n);
+/*printf("l_such: lab=%s(l=%d), afl=%d, er=%d, n=%d\n",s,*l, *afl,er,n);*/
      if(er==E_OK)
      {
-          ltp=(Labtab*)(lt+n*sl);
+          ltp=afile->la.lt+n;
           *l=ltp->len;
-          if(ltp->fl)
+          if(ltp->fl == 1)
           {
-               l_get(n,v);/*               *v=lt[n].val;*/
+               l_get(n,v,afl);/*               *v=lt[n].val;*/
                *x=n;
           } else
           {
@@ -183,7 +237,7 @@ int *l,*v,*x;
           b_get(&b);
           er=ll_def(s,x,b); /* ll_def(...,*v); */
 
-          ltp=(Labtab*)(lt+(*x)*sl);
+          ltp=afile->la.lt+(*x);
           
           *l=ltp->len;
 
@@ -196,46 +250,70 @@ int *l,*v,*x;
      return(er);
 }
 
-int l_get(n,v)
-int n,*v;
+int l_vget(int n, int *v, char **s)
 {
-     ltp=(Labtab*)(lt+n*sl);
+     ltp=afile->la.lt+n;
+     (*v)=ltp->val;
+     *s=ltp->n;
+     return 0;
+}
+
+int l_get(int n, int *v, int *afl)
+{
+     ltp=afile->la.lt+n;
      (*v)=ltp->val;
      lz=ltp->n;
-     return( ltp->fl ? E_OK : E_NODEF);
+     *afl = ltp->afl;
+/*printf("l_get('%s'(%d), v=$%04x, afl=%d, fl=%d\n",ltp->n, n, *v, *afl, ltp->fl);*/
+     return( (ltp->fl==1) ? E_OK : E_NODEF);
 }
 
-void l_set(n,v)
-int n,v;
+void l_set(int n, int v, int afl)
 {
-     ltp=(Labtab*)(lt+n*sl);
+     ltp=afile->la.lt+n;
      ltp->val = v;
      ltp->fl = 1;
+     ltp->afl = afl;
+/*printf("l_set('%s'(%d), v=$%04x, afl=%d\n",ltp->n, n, v, afl);*/
 }
 
-void ll_exblk(a,b)
-int a,b;
+static void ll_exblk(int a, int b)
 {
      int i;
-     for (i=0;i<lti;i++)
+     for (i=0;i<afile->la.lti;i++)
      {
-          ltp=(Labtab*)(lt+i*sl);
+          ltp=afile->la.lt+i;
           if((!ltp->fl) && (ltp->blk==a))
                ltp->blk=b;
      }
 }
 
-ll_def(s,n,b)          /* definiert naechstes Label  nr->n     */     
-char *s;
-int *n,b;	/*,v;*/
+static int ll_def(char *s, int *n, int b)          /* definiert naechstes Label  nr->n     */     
 {
      int j=0,er=E_NOMEM,hash;
      char *s2;
-     
-     if((lti<ANZLAB)&&(lni<(long)(LABMEM-MAXLAB)))
+
+/*printf("ll_def: s=%s\n",s);    */
+
+     if(!afile->la.lt) {
+	afile->la.lti = 0;
+	afile->la.ltm = 1000;
+	afile->la.lt = malloc(afile->la.ltm * sizeof(Labtab));
+     } 
+     if(afile->la.lti>=afile->la.ltm) {
+	afile->la.ltm *= 1.5;
+	afile->la.lt = realloc(afile->la.lt, afile->la.ltm * sizeof(Labtab));
+     }
+     if(!afile->la.lt) {
+	fprintf(stderr, "Oops: no memory!\n");
+	exit(1);
+     }
+#if 0
+     if((lti<ANZLAB) /*&&(lni<(long)(LABMEM-MAXLAB))*/)
      {
-          ltp=(Labtab*)(lt+lti*sl);
-          
+#endif
+          ltp=afile->la.lt+afile->la.lti;
+/*          
           s2=ltp->n=ln+lni;
 
           while((j<MAXLAB-1) && (s[j]!='\0') && (isalnum(s[j]) || s[j]=='_'))
@@ -243,40 +321,54 @@ int *n,b;	/*,v;*/
                s2[j]=s[j];
                j++;
           }
-
+*/
+	  while((s[j]!='\0') && (isalnum(s[j]) || (s[j]=='_'))) j++;
+	  s2 = malloc(j+1);
+	  if(!s2) {
+		fprintf(stderr,"Oops: no memory!\n");
+		exit(1);
+	  }
+	  strncpy(s2,s,j);
+	  s2[j]=0;
+/*
           if(j<MAXLAB)
           {
+*/
                er=E_OK;
-               s2[j]='\0';
                ltp->len=j;
+	       ltp->n = s2;
                ltp->blk=b;
                ltp->fl=0;
+               ltp->afl=0;
                hash=hashcode(s,j); 
-               ltp->nextindex=hashindex[hash];
-               hashindex[hash]=lti;
-               *n=lti;
-               lti++;
-               lni+=j+1;
-          }
+               ltp->nextindex=afile->la.hashindex[hash];
+               afile->la.hashindex[hash]=afile->la.lti;
+               *n=afile->la.lti;
+               afile->la.lti++;
+/*               lni+=j+1;*/
+/*          }
      }
+*/
+/*printf("ll_def return: %d\n",er);*/
      return(er);
 }
 
 
-int ll_such(s,n)          /* such Label in Tabelle ,nr->n    */
-char *s;
-int *n;
+int ll_such(char *s, int *n)          /* such Label in Tabelle ,nr->n    */
 {
      int i,j=0,k,er=E_NODEF,hash;
 
-     while(isalnum(s[j])||(s[j]=='_'))  j++;
+     while(s[j] && (isalnum(s[j])||(s[j]=='_')))  j++;
 
      hash=hashcode(s,j);
-     i=hashindex[hash];
+     i=afile->la.hashindex[hash];
+
+/*printf("such?\n");*/
+     if(i>=afile->la.ltm) return E_NODEF;
 
      do
      {
-          ltp=(Labtab*)(lt+i*sl);
+          ltp=afile->la.lt+i;
           
           if(j==ltp->len)
           {
@@ -297,13 +389,13 @@ int *n;
      }while(1);
      
      *n=i;
-/*
+#if 0
      if(er!=E_OK && er!=E_NODEF)
      {
-          printf("Fehler in ll_such:er=%d\n",er);
+          fprintf(stderr, "Fehler in ll_such:er=%d\n",er);
           getchar();
      }
-*/
+#endif
      return(er);
 }
 
@@ -313,18 +405,54 @@ int ll_pdef(char *t)
 	
 	if(ll_such(t,&n)==E_OK)
 	{
-		ltp=(Labtab*)(lt+n*sl);
+		ltp=afile->la.lt+n;
 		if(ltp->fl)
 			return(E_OK);
 	}
 	return(E_NODEF);
 }
 
-int bt[MAXBLK];
-int blk;
-int bi;
+int l_write(FILE *fp)
+{
+     int i, afl, n=0;
 
-int b_init()
+     if(noglob) {
+	fputc(0, fp);
+	fputc(0, fp);
+	return 0;
+     }
+     for (i=0;i<afile->la.lti;i++) {
+        ltp=afile->la.lt+i;
+	if((!ltp->blk) && ltp->fl) {
+	  n++;
+	}
+     }
+     fputc(n&255, fp);
+     fputc((n>>8)&255, fp);
+     for (i=0;i<afile->la.lti;i++)
+     {
+          ltp=afile->la.lt+i;
+          if((!ltp->blk) && (ltp->fl==1)) {
+	    fprintf(fp, "%s",ltp->n);
+	    fputc(0,fp);
+	    afl = ltp->afl;
+            /* hack to switch undef and abs flag from internal to file format */
+/*printf("label %s, afl=%04x, A_FMASK>>8=%04x\n", ltp->n, afl, A_FMASK>>8);*/
+            if( (afl & (A_FMASK>>8)) < SEG_TEXT) afl^=1;
+	    fputc(afl,fp);
+	    fputc(ltp->val&255, fp);
+	    fputc((ltp->val>>8)&255, fp);
+	  }
+     }
+     /*fputc(0,fp);*/
+     return 0;
+}
+
+static int bt[MAXBLK];
+static int blk;
+static int bi;
+
+int b_init(void)
 {
      blk =0;
      bi =0;
@@ -333,12 +461,17 @@ int b_init()
      return(E_OK);
 }     
 
-int ga_blk()
+int b_depth(void)
+{
+     return bi;
+}
+
+int ga_blk(void)
 {
 	return(blk);
 }
 
-int b_open()
+int b_open(void)
 {
      int er=E_BLKOVR;
 
@@ -351,28 +484,28 @@ int b_open()
      return(er);
 }
 
-int b_close()
+int b_close(void)
 {
 
      if(bi)
      {
           ll_exblk(bt[bi],bt[bi-1]);
           bi--;
+     } else {
+	  return E_BLOCK;
      }
 
      return(E_OK);
 }
 
-int b_get(n)
-int *n;
+static int b_get(int *n)
 {
      *n=bt[bi];
 
      return(E_OK);
 }
 
-int b_fget(n,i)
-int *n,i;
+static int b_fget(int *n, int i)
 {
      if((bi-i)>=0)
           *n=bt[bi-i];
@@ -381,8 +514,7 @@ int *n,i;
      return(E_OK);
 }
 
-int b_test(n)
-int n;
+static int b_test(int n)
 {
      int i=bi;
 
@@ -392,8 +524,7 @@ int n;
      return( i+1 ? E_OK : E_NOBLK );
 }
 
-int b_ltest(a,b)    /* testet ob bt^-1(b) in intervall [0,bt^-1(a)]   */
-int a,b;
+static int b_ltest(int a, int b)    /* testet ob bt^-1(b) in intervall [0,bt^-1(a)]   */
 {
      int i=0,er=E_OK;
 

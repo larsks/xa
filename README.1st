@@ -4,53 +4,69 @@ This is the README file for the package 'xa', written by A.Fachat.
 The package 'xa' is provided 'as is', no warranty will be taken
 for any damage caused by it or by any use of it.
 
-The package contains the source code for the Cross assembler 'xa'
-as well as example programms and the rest of this directory tree.
+The package contains the source code for the Cross assembler 'xa', several
+utilities in the 'misc' subdirectory, as well as example programs and
+the rest of this directory tree.
 
-The current version for 'xa' is 2.0.7c
+The current version for 'xa' is 2.1.3, as of 25mar1997
 
 The whole package is placed under the GNU Public License, for further
 information on redistribution see the included file "COPYING".
 --------------------------------------------------------------------------
 
-No further support is planned, as it is a long time ago that I 
-used it the last time. The programm has been developed on an Atari ST,
-and ported to a Linux system. It may be that on Linux some features
-will fail or the programm does some unexpected things. I haven't 
-tested it too well on the Linux machine! Although it worked very well
-on my Atari and it now assembles a small programm in the examples
-directory (This small C64 'pack' packs files into a kind of archive,
-saving the long names (long compared to DOS/TOS ;-). With this
-I saved the C64 stuff and restored them with the real names on my
-Linux box. In the misc dir you find a Linux 'uncpk' command to 
-unpack the stuff on Unixes). 
-However, the error and other messages have been changed to english.
- 
-To compile it, go to the 'src' subdir and type 'make'. This 
-should do it. The binary is compiled to the main directory.
-If you need more memory for labels or defines etc, change the definitions
-in xah.h. (static allocation is faster and on the atari it was somehow
-better, can no longer remember why...)
+XA is a 6502 cross compiler:
 
-If you want to edit the sources, don't worry about the '^M', they
-are from my Atari which uses CR and LF as newline, whereas Linux uses
-only LF. I changed xa to read Atari files even on Unix (with '^M').
+ - under GNU public license
 
-The docs are in the 'doc' subdir. If you think some things could be 
+ - can produce _relocatable_ binaries
+
+ - The full fileformat description and 6502 file loader included.
+
+ - also included relocation and info utilites, as well as linker
+
+ - for any ANSI-C compliant computer (only utilities need 'stat' call 
+   for file size). 
+
+ - fast by hashtables
+
+ - Rockwell CMOS opcodes
+
+
+I developed this cross assembler for the 6502 CPU family quite some time
+ago on my Atari ST. The assembler has successfully been ported to Amiga 
+and Unix computer (ported? just compiled... :-) 
+Lately I came across the problem to need relocatable 6502 binary files, so
+I revised the assembler from version 2.0.7 to 2.1.0, adding a (admittedly
+proprietary) 6502 relocatable binary format. But there are not many other
+formats around and they didn't fit my needs. I have developed this format 
+myself and it is under the GNU public license.
+With version 2.1.1 the 'official' version of the fileformat is supported.
+
+To compile it, just type "make" (if you have the GNU gcc. If not, edit the 
+Makefile for the compiler options). This produces "xa", the cross assembler;
+"uncpk", a small packing utility (where the C64 counterpart is in the
+examples subdirectory), "printcbm", that lists C64 BASIC files and
+'file65' that prints some information about o65 files.  The "loader" in
+the loader subdirectory is a basic 6502 implementation of a relocating
+binary loader.
+"file65" prints file information on 'o65' relocatable files. "reloc65"
+can relocate 'o65' files.
+
+One problem on the Atari was it's broken "malloc". Therefore I used to
+alloc everything in one chunk and divide the memory by hand. So everything
+was kind of statically allocated. This is almost gone now. Only the
+temporary storage between pass1 and pass2 and the preprocessor are still
+allocated in one chunk (size definitions in xah.h). The rest is allocated
+as needed.
+
+The docs are in the 'doc' subdir. There also is a description of the
+6502 relocatable binary format. If you think some things could be 
 expressed in a better way, feel free and mail me to improve my english ;-)
-
-For the Atari ST I also have a GEM-shell, that provides a much more 
-comfortable user interface than command line. 
-A binary version for the Atari ST ('xa.ttp') is included, as I don't know if 
-you have a C compiler, as this is not that usual as with Linux.
- 
-Don't ask me anything about Atari, because some time ago it ended its hard
-life.... Now I use Linux :-))
 
 For further information:
 
          Andre Fachat
-         email (prefered): fachat@galileo.rhein-neckar.de
+         email (prefered): a.fachat@physik.tu-chemnitz.de
          snail-mail:       Stadlerstr. 17
                            D-09126 Chemnitz
                            Germany

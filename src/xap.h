@@ -19,12 +19,20 @@
 */
 
 
-typedef struct {
-     char fname[MAXLINE];
-     int  fline;
-     int  bdepth;
-     FILE *filep;
-     char *flinep;
-} Datei;
+extern int pp_comand(char *t);
+extern int pp_init(void);
+extern int pp_open(char *name);
+extern int pp_define(char *name);
+extern void pp_close(void);
+extern void pp_end(void);
+extern int pgetline(char *t);
+extern Datei* pp_getidat(void);
 
+extern int ga_pp(void);
+extern int gm_pp(void);
+extern long gm_ppm(void);
+extern long ga_ppm(void);
+
+extern Datei *filep;
+extern char s[MAXLINE];
 

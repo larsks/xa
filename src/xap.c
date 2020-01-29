@@ -1,73 +1,81 @@
+
+/*
+    xa65 - 6502 cross assembler and utility suite
+    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
  
 #include  <stdio.h>
+#include  <stdlib.h>
 #include  <ctype.h>
 #include  <string.h>
+
 #include  "xah.h"
 #include  "xah2.h"
 
-/* now in xah.h 
-typedef struct {
-     char *search;
-     int  s_len;
-     char *replace;
-     int  p_anz;
-     int  nextindex;
-} List;
-*/
+#include  "xar.h"
+#include  "xa.h"
+#include  "xam.h"
+#include  "xal.h"
+#include  "xat.h"
+#include  "xap.h"
 
+char 	  s[MAXLINE];
+Datei     *filep;
 
-int ll_such(char*,int*);
-int ll_pdef(char*);
-int tcompare(char*,char**,int);
-int suchdef(char*);
-int pp_replace(char*,char*,int,int);
-void errout(int);
-void logout(char*);
-int b_term(char*,int*,int*,int);
-int m_alloc(long,char**);
-int fgetline(char*,FILE*);
-int pp_comand(char*);
-int icl_close(int*);
-int rgetc(FILE*);
-FILE *xfopen(const char *filename,const char *mode);
-
-extern int pc;
-char s[MAXLINE];
-char *mem;
-unsigned long memfre;
-int nlf;
-int nff;
-static int hashindex[256];
+static int tcompare(char*,char**,int);
+static int pp_replace(char*,char*,int,int);
+static int suchdef(char*);
+static int fgetline(char*,int len, int *rlen, FILE*);
 
 #define   hashcode(n,l)  (n[0]&0x0f)|(((l-1)?(n[1]&0x0f):0)<<4)
 
-int  icl_open(),pp_define(),pp_ifdef(),pp_ifndef(),pp_else(),pp_endif();
-int  pp_echo(),pp_if(),pp_print(),pp_prdef(),pp_ifldef(),pp_iflused();
-int  pp_undef();
+static int  icl_open(char*),pp_ifdef(char*),pp_ifndef(char*);
+static int  pp_else(char*),pp_endif(char*);
+static int  pp_echo(char*),pp_if(char*),pp_print(char*),pp_prdef(char*);
+static int  pp_ifldef(char*),pp_iflused(char*);
+static int  pp_undef(char*);
 
 #define   ANZBEF    13
 #define   VALBEF    6
 
-char *cmd[]={ "echo","include","define","undef","printdef","print",
+static char *cmd[]={ "echo","include","define","undef","printdef","print",
 			"ifdef","ifndef","else","endif",
                "ifldef","iflused","if" };
                
-int (*func[])(char*) = { pp_echo,icl_open,pp_define,pp_undef,
+static int (*func[])(char*) = { pp_echo,icl_open,pp_define,pp_undef,
 			 pp_prdef,pp_print, pp_ifdef,pp_ifndef,
                          pp_else,pp_endif,
                          pp_ifldef,pp_iflused,pp_if };
 
-List      *liste;
-unsigned int       rlist;
-unsigned long      rmem;
-int       fsp;
-int       loopfl;
-Datei     flist[MAXFILE+1];
-Datei     *filep;
-char      in_line[MAXLINE];
+static char 		*mem;
+static unsigned long 	memfre;
+static int 		nlf;
+static int 		nff;
+static int 		hashindex[256];
 
-pp_comand(t)
-char *t;
+static List 	     	*liste;
+static unsigned int     rlist;
+static int       	fsp;
+static int       	loopfl;
+static Datei     	flist[MAXFILE+1];
+static char      	in_line[MAXLINE];
+
+int pp_comand(char *t)
 {
      int i,l,er=1;
 
@@ -88,8 +96,7 @@ char *t;
      return(er);
 }
 
-int pp_ifdef(t)
-char *t;
+int pp_ifdef(char *t)
 {
 /*     int x;
      printf("t=%s\n",t);
@@ -100,8 +107,7 @@ char *t;
      return(0);
 }
 
-int pp_ifndef(t)
-char *t;
+int pp_ifndef(char *t)
 {
      loopfl=(loopfl<<1)+( suchdef(t) ? 1 : 0 );
      return(0);
@@ -120,12 +126,11 @@ int pp_iflused(char *t)
 	return(0);
 }
 
-int pp_echo(t)
-char *t;
+int pp_echo(char *t)
 {
      int er;
      
-     if(er=pp_replace(s,t,-1,rlist))
+     if((er=pp_replace(s,t,-1,rlist)))
           errout(er);
      else
      {
@@ -135,13 +140,12 @@ char *t;
      return(0);
 }
 
-int pp_print(t)
-char *t;
+int pp_print(char *t)
 {
      int f,a,er;
      
      logout(t);
-     if(er=pp_replace(s,t,-1,rlist))
+     if((er=pp_replace(s,t,-1,rlist)))
      {
           logout("\n");
           errout(er);
@@ -151,7 +155,7 @@ char *t;
           logout("=");
           logout(s);
           logout("=");
-          er=b_term(s,&a,&f,pc);
+          er=b_term(s,&a,&f,pc[segment]);
           if(er)
           {
                logout("\n");
@@ -164,19 +168,19 @@ char *t;
      return(0);
 }
 
-int pp_if(t)
-char *t;
+int pp_if(char *t)
 {
      int a,f,l,er;
 
-     if(er=pp_replace(s,t,-1,rlist))
+     if((er=pp_replace(s,t,-1,rlist)))
           errout(er);
      else
      {
+	dsb_len = 1;
+          f=b_term(s,&a,&l,pc[segment]);
+	dsb_len = 0;
 
-          f=b_term(s,&a,&l,pc);
-
-          if(f)     
+          if((!loopfl) && f)     
                errout(f);
           else
                loopfl=(loopfl<<1)+( a ? 0 : 1 );
@@ -184,15 +188,13 @@ char *t;
      return(0);
 }
 
-int pp_else(t)
-char *t;
+int pp_else(char *t)
 {
      loopfl ^=1;
      return(0);
 }
 
-int pp_endif(t)
-char *t;
+int pp_endif(char *t)
 {
      loopfl=loopfl>>1;
      return(0);
@@ -201,20 +203,19 @@ char *t;
 /* pp_undef is a great hack to get it working fast... */
 int pp_undef(char *t) {
      int i;
-     if(i=suchdef(t)) {
+     if((i=suchdef(t))) {
 	i+=rlist;
 	liste[i].s_len=0;
      }
      return 0;
 }
 
-int pp_prdef(t)
-char *t;
+int pp_prdef(char *t)
 {
      char *x;
      int i,j;
 
-     if(i=suchdef(t))
+     if((i=suchdef(t)))
      {
           i+=rlist;
           x=liste[i].search;
@@ -234,8 +235,7 @@ char *t;
      return(E_OK);
 }
 
-int suchdef(t)
-char *t;
+int suchdef(char *t)
 {
      int i=0,j,k,l=0;
 
@@ -271,31 +271,31 @@ char *t;
      return(i-rlist);
 }
 
-int ga_pp()
+int ga_pp(void)
 {
 	return(rlist);
 }
 
-int gm_pp()
+int gm_pp(void)
 {
 	return(ANZDEF);
 }
 
-long gm_ppm()
+long gm_ppm(void)
 {
 	return(MAXPP);
 }
 
-long ga_ppm()
+long ga_ppm(void)
 {
 	return(MAXPP-memfre);
 }
     
-int pp_define(k)
-char *k;
+int pp_define(char *k)
 {
-     int i,er=E_OK,j,hash,rl;
+     int i,er=E_OK,hash,rl;
      char h[MAXLINE*2],*t;
+     unsigned int j;
      
      t=k;
           
@@ -314,6 +314,7 @@ char *k;
      memfre-=i+1;
      liste[rl].s_len=i;
      liste[rl].p_anz=0;
+
 /*
      printf("define:%s\nlen1=%d\n",liste[rl].search,liste[rl].s_len);
      getchar();
@@ -347,15 +348,16 @@ char *k;
      liste[rl].replace=mem;
      strcpy(mem,t);
      mem+=strlen(t)+1;
-/*
+#if 0	/* debug */
+     { char *ss;
      if(liste[rl].p_anz)
      {
-          s=liste[rl].search;
+          ss=liste[rl].search;
           printf("define:\n%s(",liste[rl].search);
           for(j=0;j<liste[rl].p_anz;j++)
           {
-               s+=strlen(s)+1;
-               printf("%s%c",s,(liste[rl].p_anz-j-1) ? ',' : ')');
+               ss+=strlen(ss)+1;
+               printf("%s%c",ss,(liste[rl].p_anz-j-1) ? ',' : ')');
           }
           printf("=%s\n",liste[rl].replace);
           getchar();
@@ -365,7 +367,8 @@ char *k;
           printf("define:%s=%s\nlen1=%d\n",liste[rl].search,
                liste[rl].replace,liste[rl].s_len);
      }
-*/
+     }
+#endif
      if(!er)
      {
           hash=hashcode(liste[rl].search,liste[rl].s_len);
@@ -377,9 +380,7 @@ char *k;
      return(er);
 }
 
-int tcompare(s,v,n)
-char s[],*v[];
-int n;
+int tcompare(char s[],char *v[], int n)
 {
      int i,j,l;
      static char t[MAXLINE];
@@ -403,9 +404,7 @@ int n;
      return((i==n)? -1 : i);
 }
 
-int pp_replace(to,ti,a,b)
-char *ti,*to;
-int a,b;
+int pp_replace(char *to, char *ti, int a,int b)
 {
      char *t=to,c,*x,*y,*mx,*rs;
      int i,l,n,sl,d,ld,er=E_OK,hkfl,klfl;
@@ -544,7 +543,7 @@ int a,b;
                               strcpy(t+sl+d,ti+sl);
 
                          i=0;
-                         while(c=rs[i])
+                         while((c=rs[i]))
                               t[i++]=c;
                          l=sl+d;/*=0;*/
                          break;
@@ -653,7 +652,7 @@ int a,b;
                               strcpy(t+sl+d,ti+sl);
                               
                          i=0;
-                         while(c=rs[i])
+                         while((c=rs[i]))
                               t[i++]=c;
                          l+=d;/*0;*/
                          break;
@@ -668,7 +667,7 @@ int a,b;
      return(E_OK);
 }
 
-int pp_init()
+int pp_init(void)
 {
      int er;
 
@@ -676,18 +675,23 @@ int pp_init()
           hashindex[er]=0;
           
      fsp=0;
-     er=m_alloc(MAXPP,&mem);
+
+     er=0;
+     mem=malloc(MAXPP);
+     if(!mem) er=E_NOMEM;
+
      memfre=MAXPP;
      rlist=0;
      nlf=1;
      nff=1;
-     if(!er)
-          er=m_alloc((long)ANZDEF*sizeof(List),(char**)&liste);
+     if(!er) {
+          liste=malloc((long)ANZDEF*sizeof(List));
+	  if(!liste) er=E_NOMEM;
+     }
      return(er);
 }
 
-int pp_open(name)
-char *name;
+int pp_open(char *name)
 {
      FILE *fp;
 
@@ -695,25 +699,38 @@ char *name;
 		
      strcpy(flist[0].fname,name);
      flist[0].fline=0;
+     flist[0].bdepth=b_depth();
      flist[0].filep=fp;
      flist[0].flinep=NULL;    
 
      return(((long)fp)==0l);
 }
 
-void pp_close()
+void pp_close(void)
 {
+     if(flist[fsp].bdepth != b_depth()) {
+	fprintf(stderr, "Blocks not consistent in file %s: start depth=%d, end depth=%d\n",
+	  flist[fsp].fname, flist[fsp].bdepth, b_depth());
+     }
      fclose(flist[fsp].filep);
 }
 
-void pp_end() { }
+void pp_end(void) { }
 
-int icl_close(c)
-int *c;
+Datei *pp_getidat(void) {
+	return &flist[fsp];
+}
+
+int icl_close(int *c)
 {
      if(!fsp)
           return(E_EOF);
      
+     if(flist[fsp].bdepth != b_depth()) {
+	fprintf(stderr, "Blocks not consistent in file %s: start depth=%d, end depth=%d\n",
+	  flist[fsp].fname, flist[fsp].bdepth, b_depth());
+     }
+
      fclose(flist[fsp--].filep);
      nff=1;
      *c='\n';
@@ -721,23 +738,24 @@ int *c;
      return(E_OK);
 }
 
-int icl_open(t)
-char *t;
+int icl_open(char *tt)
 {
      FILE *fp2;
      int j,i=0;
 
+     pp_replace(s,tt,-1,rlist);
+
      if(fsp>=MAXFILE)
           return(-1);
 
-     if(t[i]=='<' || t[i]=='"')
+     if(s[i]=='<' || s[i]=='"')
           i++;
 
-     for(j=i;t[j];j++)
-          if(t[j]=='>' || t[j]=='"')
-               t[j]='\0';
+     for(j=i;s[j];j++)
+          if(s[j]=='>' || s[j]=='"')
+               s[j]='\0';
 
-     fp2=xfopen(t+i,"r");
+     fp2=xfopen(s+i,"r");
 
      if(!fp2)
           return(E_FNF);
@@ -746,8 +764,9 @@ char *t;
 	
      fsp++;
 
-     strcpy(flist[fsp].fname,t+i);
+     strcpy(flist[fsp].fname,s+i);
      flist[fsp].fline=0;
+     flist[fsp].bdepth=b_depth();
      flist[fsp].flinep=NULL;
      flist[fsp].filep=fp2;
      nff=1;
@@ -755,20 +774,26 @@ char *t;
      return(0);
 }
 
-int pgetline(t)
-char *t;
+int pgetline(char *t)
 {
      int c,er=E_OK;
+     int rlen, tlen;
+
      loopfl =0;
 
      filep =flist+fsp;
 
      do {
-          c=fgetline(in_line,flist[fsp].filep);
-
+          c=fgetline(in_line, MAXLINE, &rlen, flist[fsp].filep);
+	  /* continuation lines */
+	  tlen = rlen;
+	  while(c=='\n' && tlen && in_line[tlen-1]=='\\') {
+	    c=fgetline(in_line + tlen-1, MAXLINE-tlen, &rlen, flist[fsp].filep);
+	    tlen += rlen-1;
+	  }
           if(in_line[0]=='#')
           {
-               if(er=pp_comand(in_line+1))
+               if((er=pp_comand(in_line+1)))
                {
                     if(er!=1)
                     {
@@ -806,8 +831,7 @@ char *t;
 
 /*************************************************************************/
 
-int rgetc(fp)
-FILE *fp;
+int rgetc(FILE *fp)
 {
      static int c,d,fl;
 
@@ -846,9 +870,7 @@ FILE *fp;
      return(c-'\t'?c:' ');
 }
 
-fgetline(t,fp)
-char *t;
-FILE *fp;
+int fgetline(char *t, int len, int *rlen, FILE *fp)
 {
      static int c,i;
 
@@ -859,13 +881,13 @@ FILE *fp;
           
           if(c==EOF || c=='\n')
           {
-               t[i]='\0';
-               break;
+             t[i]='\0';
+             break;
           }
           t[i]=c;
-          i= (i<MAXLINE-1) ? i+1 : MAXLINE-1;
+          i= (i<len-1) ? i+1 : len-1;
      } while(1);
-
+     *rlen = i;
      return(c);
 }
 

@@ -1,249 +1,414 @@
 
+/*
+    xa65 - 6502 cross assembler and utility suite
+    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
+
+/* structs and defs */
+
 #include "xah.h"
 #include "xah2.h"
 
-const char *copyright={
-"Cross-Assembler 65xx V2.07d 20mar96 (c) 1989-96 by A.Fachat\n"};
+/* exported functions are defined here */
 
-time_t tim1,tim2;
-char out[MAXLINE];
-extern char s[MAXLINE];
-extern Datei *filep;
-extern char *lz;
-FILE *fpout,*fp,*fperr,*fplab;
-int getline();
-extern int pc;
-int ner;
+#include "xar.h"
+#include "xa.h"
+#include "xam.h"
+#include "xal.h"
+#include "xap.h"
+#include "xat.h"
+#include "xao.h"
+
+/* exported globals */
+
 int ncmos,cmosfl;
+int masm = 0;
+int nolink = 0;
+int romable = 0;
+int romadr = 0;
+int noglob = 0;
+int showblk = 0;
 
-void printstat(void);
-void logout(char*);
-void usage(void);
-int setfext(char*,char*);
-int  m_init(void);
-void m_exit(void);
-int  b_init(void);
-int  l_init(void);
-int  pp_init(void);
-int  x_init(void);
-int  pp_open(char*);
-void pp_close(void);
-void pp_end(void);
-int  pass1(void);
-int  pass2(void);
-void printllist(FILE*);
-int  puttmp(int);
-int  puttmps(char*,int);
-int  t_p2(char*,int*,int);
-int  t_p1(char*,char*,int*);
-void chrput(int);
-void errout(int);
-int  getline(char*);
-void lineout(void);
-int  m_alloc(long,char**);
-int  pgetline(char*);
-FILE *xfopen(const char *filename,const char *mode);
+/* local variables */
 
-int main(argc,argv)
-int argc;
-char *argv[];
+static const char *copyright={
+"Cross-Assembler 65xx V2.1.4 10aug1997 (c) 1989-97 by A.Fachat\n"};
+
+static char out[MAXLINE];
+static time_t tim1,tim2;
+static FILE *fpout,*fperr,*fplab;
+static int ner = 0;
+
+static int align = 1;
+
+static void printstat(void);
+static void usage(void);
+static int  setfext(char*,char*);
+static int  x_init(void);
+static int  pass1(void);
+static int  pass2(void);
+static int  puttmp(int);
+static int  puttmps(signed char*,int);
+static void chrput(int);
+static int  getline(char*);
+static void lineout(void);
+static long ga_p1(void);
+static long gm_p1(void);
+
+/* text */
+int segment;
+int tlen=0, tbase=0x1000;
+int dlen=0, dbase=0x0400;
+int blen=0, bbase=0x4000;
+int zlen=0, zbase=4;
+int fmode=0;
+int relmode=0;
+
+int pc[SEG_MAX];	/* segments */
+
+int main(int argc,char *argv[])
 {
      int er=1,i;
-     char ofile[MAXLINE];
-     char efile[MAXLINE];
-     char lfile[MAXLINE];
-     char ifile[MAXLINE];
+     signed char *s=NULL;
 
-	tim1=time(NULL);
+     int mifiles = 5;
+     int nifiles = 0;
+     int verbose = 0;
+     int oldfile = 0;
+     int no_link = 0;
+
+     char **ifiles;
+     char *ofile;
+     char *efile;
+     char *lfile;
+     char *ifile;
+
+     char old_e[MAXLINE];
+     char old_l[MAXLINE];
+     char old_o[MAXLINE];
+
+     tim1=time(NULL);
      
      ncmos=0;
      cmosfl=1;
 
-	printf("%s",copyright);
-	
+     ifiles = malloc(mifiles*sizeof(char*));
+
+     afile = alloc_file();
+
      if(argc<=1)
      {
           usage();
           return(1);
      }
      
-     strcpy(ofile,argv[1]);
-     strcpy(efile,argv[1]);
-     strcpy(lfile,argv[1]);
+     ofile="a.o65";
+     efile=NULL;
+     lfile=NULL;
 
-     setfext(ofile,".obj");
-     setfext(lfile,".lab");
-     setfext(efile,".err");
+     if(pp_init()) {
+       logout("fatal: pp: no memory!");
+       return 1;
+     }
+     if(b_init()) {
+       logout("fatal: b: no memory!");
+       return 1;
+     }
+     if(l_init()) {
+       logout("fatal: l: no memory!");
+       return 1;
+     }
 
-     for(i=1; i<argc; i++)
-          if(argv[i][0]=='-' && tolower(argv[i][1])=='o')
-               strcpy(ofile,argv[i]+2);
+ 
+     i=1;
+     while(i<argc) {
+	if(argv[i][0]=='-') {
+	  switch(argv[i][1]) {
+	  case 'M':
+	   	masm = 1;	/* MASM compatibility mode */
+		break;
+	  case 'A':		/* make text segment start so that text relocation
+				   is not necessary when _file_ starts at adr */
+		romable = 2;
+		if(argv[i][2]==0) romadr = atoi(argv[++i]);
+		else romadr = atoi(argv[i]+2);
+		break;
+	  case 'G':
+		noglob = 1;
+		break;
+	  case 'L':		/* define global label */
+		if(argv[i][2]) lg_set(argv[i]+2);
+		break;
+	  case 'R':
+		relmode = 1; 
+		break;
+	  case 'D':
+		s = (signed char*)strstr(argv[i]+2,"=");
+		if(s) *s = ' ';
+		pp_define(argv[i]+2);
+		break;
+	  case 'c':
+		no_link = 1;
+		fmode |= FM_OBJ;
+		break;
+	  case 'v':
+		verbose = 1; 
+		break;
+	  case 'C':
+		cmosfl = 0;
+		break;
+	  case 'B':
+		showblk = 1;
+		break;
+	  case 'x':		/* old filename behaviour */
+		oldfile = 1;
+		break;
+	  case 'o':
+		if(argv[i][2]==0) {
+		  ofile=argv[++i];
+		} else {
+		  ofile=argv[i]+2;
+		}
+		break;
+	  case 'l':
+		if(argv[i][2]==0) {
+		  lfile=argv[++i];
+		} else {
+		  lfile=argv[i]+2;
+		}
+		break;
+	  case 'e':
+		if(argv[i][2]==0) {
+		  efile=argv[++i];
+		} else {
+		  efile=argv[i]+2;
+		}
+		break;
+	  case 'b':			/* set segment base addresses */
+		switch(argv[i][2]) {	
+		case 't':
+			if(argv[i][3]==0) tbase = atoi(argv[++i]);
+			else tbase = atoi(argv[i]+3);
+			break;
+		case 'd':
+			if(argv[i][3]==0) dbase = atoi(argv[++i]);
+			else dbase = atoi(argv[i]+3);
+			break;
+		case 'b':
+			if(argv[i][3]==0) bbase = atoi(argv[++i]);
+			else bbase = atoi(argv[i]+3);
+			break;
+		case 'z':
+			if(argv[i][3]==0) zbase = atoi(argv[++i]);
+			else zbase = atoi(argv[i]+3);
+			break;
+		default:
+			fprintf(stderr,"unknow segment type '%c' - ignoring!\n",
+								argv[i][2]);
+			break;
+		}
+		break;
+	  case 0:
+		fprintf(stderr, "Single dash '-' on command line - ignoring!\n");
+		break;
+	  default:
+		fprintf(stderr, "Unknown option '%c' - ignoring!\n",argv[i][1]);
+		break;
+	  }
+	} else {		/* no option -> filename */
+	  ifiles[nifiles++] = argv[i];
+	  if(nifiles>=mifiles) {
+	    mifiles += 5;
+	    ifiles=realloc(ifiles, mifiles*sizeof(char*));
+	    if(!ifiles) {
+		fprintf(stderr, "Oops: couldn't alloc enough mem for filelist table..!\n");
+		exit(1);
+	    }
+	  }
+	}
+	i++;
+     }
+     if(!nifiles) {
+	fprintf(stderr, "No input files given!\n");
+	exit(0);
+     }
 
-     for(i=1; i<argc; i++)
-          if(argv[i][0]=='-' && tolower(argv[i][1])=='e')
-               strcpy(efile,argv[i]+2);
+     if(oldfile) {
+	strcpy(old_e, ifiles[0]);
+	strcpy(old_o, ifiles[0]);
+	strcpy(old_l, ifiles[0]);
 
-     for(i=1; i<argc; i++)
-          if(argv[i][0]=='-' && tolower(argv[i][1])=='l')
-               strcpy(lfile,argv[i]+2);
+	if(setfext(old_e,".err")==0) efile = old_e;
+	if(setfext(old_o,".obj")==0) ofile = old_o;
+	if(setfext(old_l,".lab")==0) lfile = old_l;
+     }
 
-     for(i=1; i<argc; i++)
-          if(argv[i][0]=='-' && tolower(argv[i][1])=='c')
-               cmosfl =0;
+     fplab= lfile ? xfopen(lfile,"w") : NULL;
+     fperr= efile ? xfopen(efile,"w") : NULL;
+     if(!strcmp(ofile,"-")) {
+	ofile=NULL;
+        fpout = stdout;
+     } else {
+        fpout= xfopen(ofile,"wb");
+     }
+     if(!fpout) {
+	fprintf(stderr, "Couldn't open output file!\n");
+	exit(1);
+     }
 
-     if(!m_init())
+     if(verbose) fprintf(stderr, "%s",copyright);
+
+     if(1 /*!m_init()*/)
      {
-/*printf("memory ok\n"); getchar();*/
-      if(!b_init())
-      {
-/*printf("block ok\n"); getchar();*/
-       if(!l_init())
+       if(1 /*!b_init()*/)
        {
-/*printf("label ok\n"); getchar();*/
-        if(!pp_init())
-        {
-/*printf("pp ok\n"); getchar();*/
-         if(!x_init())
+         if(1 /*!l_init()*/)
          {
-/*printf("x ok\n"); getchar();*/
-/*printf("ofile=%s\n",ofile);*/
-          fpout=xfopen(ofile,"wb");
-
-          if (fpout)
-          { 
-/*printf("fpout!=0\n"); getchar();*/
-           fplab=xfopen(lfile,"w");
-            
-           if(fplab)
+           /*if(!pp_init())*/
            {
-/*printf("fplab!=0\n"); getchar();*/
-            fperr=xfopen(efile,"w");
+             if(!x_init())
+             {
+	       if(fperr) fprintf(fperr,"%s",copyright);
+	       if(verbose) logout(ctime(&tim1));
 
-            if(fperr)
-            {
-/*printf("fperr!=0\n"); getchar();*/
+	       /* Pass 1 */
 
-			fprintf(fperr,"%s",copyright);
-			logout(ctime(&tim1));
+               pc[SEG_ABS]= 0;		/* abs addressing */
+	       seg_start(fmode, tbase, dbase, bbase, zbase, 0, relmode);
 
-/* Hier beginnt Pass 1                                                */
+	       if(relmode) {
+		 r_mode(RMODE_RELOC);
+		 segment = SEG_TEXT;
+	       } else {
+		 r_mode(RMODE_ABS);
+	       }
 
-               pc   =0;
+	       nolink = no_link;
 
-               for (i=1; i<argc; i++)
+               for (i=0; i<nifiles; i++)
                {
-                    if (isalpha(argv[i][0]))
-                    {
-                         strcpy(ifile,argv[i]);
-                         setfext(ifile,".a65");
+		 ifile = ifiles[i];
 
-                         sprintf(out,"xAss65: Pass 1: %s\n",ifile);
-                         logout(out);
+                 sprintf(out,"xAss65: Pass 1: %s\n",ifile);
+                 if(verbose) logout(out);
 
-                         er=pp_open(ifile);
-/*printf("pp_open=%d\n",er); getchar();*/
-                         if(!er)
-                         {
-                              er=pass1();
-                              pp_close();
-                         }
-                         else
-                            /*  logout("Kann Quell-Datei nicht ”ffnen !\n");*/
-                              logout("Couldn't open source file!\n");
-                    }
+                 er=pp_open(ifile);
+                 if(!er) {
+                   er=pass1();
+                   pp_close();
+                 } else {
+		   sprintf(out, "Couldn't open source file '%s'!\n", ifile);
+		   logout(out);
+                 }
                }           
+
+	       if((er=b_depth())) {
+		 sprintf(out,"Still %d blocks open at end of file!\n",er);
+		 logout(out);
+	       }
+
+	       if(tbase & (align-1)) {
+		   sprintf(out,"Warning: text segment ($%04x) start address doesn't align to %d!\n", tbase, align);
+		   logout(out);
+	       }
+	       if(dbase & (align-1)) {
+		   sprintf(out,"Warning: data segment ($%04x) start address doesn't align to %d!\n", dbase, align);
+		   logout(out);
+	       }
+	       if(bbase & (align-1)) {
+		   sprintf(out,"Warning: bss segment ($%04x) start address doesn't align to %d!\n", bbase, align);
+		   logout(out);
+	       }
+	       if(zbase & (align-1)) {
+		   sprintf(out,"Warning: zero segment ($%04x) start address doesn't align to %d!\n", zbase, align);
+		   logout(out);
+	       }
+
+	       if((!er) && relmode) 
+			h_write(fpout, fmode, tlen, dlen, blen, zlen, 0);
+
 
                if(!er)
                {
-                    logout("xAss65: Pass 2:\n");
+                    if(verbose) logout("xAss65: Pass 2:\n");
 
+		    seg_pass2();
+
+	            if(!relmode) {
+	              r_mode(RMODE_ABS);
+	            } else {
+	              r_mode(RMODE_RELOC);
+		      segment = SEG_TEXT;
+	            }
                     er=pass2();
                } 
 
-               printllist(fplab);
+               if(fplab) printllist(fplab);
                tim2=time(NULL);
-			printstat();
+	       if(verbose) printstat();
+
+	       if((!er) && relmode) seg_end(fpout);	/* write reloc/label info */
 			                              
-               fclose(fperr);
-            }
-            else
-               /* logout("Kann Log-Datei nicht ”ffnen!\n");*/
-               logout("Couldn't open log file!\n");
-                  
-            fclose(fplab);
+               if(fperr) fclose(fperr);
+               if(fplab) fclose(fplab);
+               if(fpout) fclose(fpout);
+
+             } else {
+               logout("fatal: x: no memory!\n");
+             }
+             pp_end();
+/*           } else {
+             logout("fatal: pp: no memory!");*/
            }
-           else
-              /* logout("Kann Label-Datei nicht ”ffnen!\n");*/
-              logout("Couldn't open label file!\n");
-               
-           fclose(fpout);
-          }
-          else
-               /* logout("Kann Ausgabe-Datei nicht ”ffnen!\n");*/
-               logout("Couldn't open output file!\n");
-
-          pp_end();
-         } else
-         {
-          /* logout("X: Kein Speicher\n");*/
-          logout("fatal: x: no memory!\n");
-         }
-        } else
-        {
-          /* logout("PP: Kein Speicher\n");*/
-          logout("fatal: pp: no memory!");
-          getchar();
-        }
-       } else
-       {
-          /* logout("L: Kein Speicher\n");*/
+         } else {
           logout("fatal: l: no memory!\n");
-          getchar();
-       }
-      } else
-      {
-          /* logout("B: Kein Speicher\n");*/
+         }
+       } else {
           logout("fatal: b: no memory!\n");
-          getchar();
-      }
-      m_exit();
-     } else
-     { 
-          /* logout("Nicht genug Speicher vorhanden\n");*/
+       }
+       /*m_exit();*/
+     } else { 
           logout("Not enough memory available!\n");
-          getchar();
      }
 
-     if(er)
+     if(ner || er)
      {
-          /* printf("Abbruch nach Fehler !\nWeiter mit <Return>\n"); */
-          printf("Break after error\ngo on with <return>\n");
-          getchar();
+          fprintf(stderr, "Break after %d error%c\n",ner,ner?'s':0);
+	  /*unlink();*/
+	  if(ofile) {
+	    unlink(ofile);
+	  }
      }
 
-     return( er ? 1 : 0 );
+     free(ifiles);
+
+     return( (er || ner) ? 1 : 0 );
 }
 
-void printstat()
+static void printstat(void)
 {
-	int ga_lab(void),gm_lab(void),ga_blk(void),ga_pp(void),gm_pp(void);
-	long ga_ppm(void),gm_ppm(void),ga_labm(void),gm_labm(void);
-	long ga_p1(void),gm_p1(void);
-	
 	logout("Statistics:\n");
-/*
-	sprintf(out," %8d von %8d Labels benutzt\n",ga_lab(),gm_lab()); logout(out);
-	sprintf(out," %8ld von %8ld Byte Label-Speicher benutzt\n",ga_labm(),gm_labm()); logout(out);
-	sprintf(out," %8d von %8d PP-Defs benutzt\n",ga_pp(),gm_pp()); logout(out);
-	sprintf(out," %8ld von %8ld Byte PP-Speicher benutzt\n",ga_ppm(),gm_ppm()); logout(out);
-	sprintf(out," %8ld von %8ld Byte Zwischenspeicher benutzt\n",ga_p1(),gm_p1()); logout(out);
-	sprintf(out," %8d Blocks benutzt\n",ga_blk()); logout(out);
-	sprintf(out," %8ld Sekunden ben”tigt\n",(long)difftime(tim2,tim1)); logout(out);
-*/
 	sprintf(out," %8d of %8d label used\n",ga_lab(),gm_lab()); logout(out);
 	sprintf(out," %8ld of %8ld byte label-memory used\n",ga_labm(),gm_labm()); logout(out);
 	sprintf(out," %8d of %8d PP-defs used\n",ga_pp(),gm_pp()); logout(out);
@@ -253,8 +418,40 @@ void printstat()
 	sprintf(out," %8ld seconds used\n",(long)difftime(tim2,tim1)); logout(out);
 }
 
-int setfext(s,ext)
-char *s,*ext;
+#define	fputw(a,fp)	fputc((a)&255,fp);fputc((a>>8)&255,fp)
+
+int h_length(void) {
+	return 26+o_length();
+}
+
+#if 0
+/* write header for relocatable output format */
+int h_write(FILE *fp, int tbase, int tlen, int dbase, int dlen, 
+				int bbase, int blen, int zbase, int zlen) {
+
+	fputc(1, fp);			/* version byte */
+	fputc(0, fp);			/* hi address 0 -> no C64 */
+	fputc("o", fp);
+	fputc("6", fp);
+	fputc("5", fp);			
+	fputc(0, fp);			/* format version */
+	fputw(mode, fp);		/* file mode */
+	fputw(tbase,fp);		/* text base */
+	fputw(tlen,fp);			/* text length */
+	fputw(dbase,fp);		/* data base */
+	fputw(dlen,fp);			/* data length */
+	fputw(bbase,fp);		/* bss base */
+	fputw(blen,fp);			/* bss length */
+	fputw(zbase,fp);		/* zerop base */
+	fputw(zlen,fp);			/* zerop length */
+
+	o_write(fp);
+
+	return 0;
+}
+#endif
+
+static int setfext(char *s, char *ext)
 {
      int j,i=(int)strlen(s);
 
@@ -280,92 +477,125 @@ char *s,*ext;
      return(0);
 }
 
-char *tmp;
-unsigned long tmpz;
-unsigned long tmpe;
+/*
+static char *tmp;
+static unsigned long tmpz;
+static unsigned long tmpe;
+*/
 
-long ga_p1()
+static long ga_p1(void)
 {
-	return(tmpz);
+	return(afile->mn.tmpz);
 }
-long gm_p1()
+static long gm_p1(void)
 {
 	return(TMPMEM);
 }
 
+#ifndef abs
 #define abs(a) ((a)>=0 ? a : -a)
+#endif
 
-int pass2()
+static int pass2(void)
 {
-     int c,er,l,ll,i;
+     int c,er,l,ll,i,al;
      Datei datei;
+     signed char *dataseg=NULL;
+     signed char *datap=NULL;
 
+     if((dataseg=malloc(dlen))) {
+       if(!dataseg) {
+	 fprintf(stderr, "Couldn't alloc dataseg memory...\n");
+	 exit(1);
+       }
+       datap=dataseg;
+     }
      filep=&datei;
-     ner=0;
-     tmpe=0L;
+     afile->mn.tmpe=0L;
 
-     while(ner<20 && tmpe<tmpz)
+     while(ner<20 && afile->mn.tmpe<afile->mn.tmpz)
      {
-          l=tmp[tmpe++];
+          l=afile->mn.tmp[afile->mn.tmpe++];
           ll=l;
 
           if(!l)
           {
-               if(tmp[tmpe]==T_LINE)
+               if(afile->mn.tmp[afile->mn.tmpe]==T_LINE)
                {
-                    datei.fline=(tmp[tmpe+1]&255)+(tmp[tmpe+2]<<8);
-                    tmpe+=3;
+                    datei.fline=(afile->mn.tmp[afile->mn.tmpe+1]&255)+(afile->mn.tmp[afile->mn.tmpe+2]<<8);
+                    afile->mn.tmpe+=3;
                } else
-               if(tmp[tmpe]==T_FILE)
+               if(afile->mn.tmp[afile->mn.tmpe]==T_FILE)
                {
-                    datei.fline=(tmp[tmpe+1]&255)+(tmp[tmpe+2]<<8);
-                    strcpy(datei.fname,tmp+tmpe+3);
-                    tmpe+=3+strlen(datei.fname);
+                    datei.fline=(afile->mn.tmp[afile->mn.tmpe+1]&255)+(afile->mn.tmp[afile->mn.tmpe+2]<<8);
+                    strcpy(datei.fname,(char*) afile->mn.tmp+afile->mn.tmpe+3);
+                    afile->mn.tmpe+=3+strlen(datei.fname);
                }
           } else
           {
-               er=t_p2(tmp+tmpe,&ll,0);
+               er=t_p2(afile->mn.tmp+afile->mn.tmpe,&ll,0,&al);
           
                if(er==E_NOLINE)
                {
                } else
                if(er==E_OK)
                {
+		  if(segment<SEG_DATA) { 
                     for(i=0;i<ll;i++)
-                         chrput(tmp[tmpe+i]);
+                         chrput(afile->mn.tmp[afile->mn.tmpe+i]);
+		  } else if (segment==SEG_DATA && datap) {
+		    memcpy(datap,afile->mn.tmp+afile->mn.tmpe,ll);
+		    datap+=ll;
+		  }
                } else
                if(er==E_DSB)
                {
-                    /*printf("E_DSB, ll=%d, l=%d, c=%c\n",ll,l,tmp[tmpe]);*/
-                    c=tmp[tmpe];
+                  c=afile->mn.tmp[afile->mn.tmpe];
+		  if(segment<SEG_DATA) {
+                    /*printf("E_DSB, ll=%d, l=%d, c=%c\n",ll,l,afile->mn.tmp[afile->mn.tmpe]);*/
                     for(i=0;i<ll;i++)
                          chrput(c);
+		  } else if (segment==SEG_DATA && datap) {
+		    memset(datap, c, ll);
+		    datap+=ll;
+		  }
                } else
                {
                     errout(er);
                }
           }
-          tmpe+=abs(l);
+          afile->mn.tmpe+=abs(l);
      }
+     if(relmode) {
+       if((ll=fwrite(dataseg, 1, dlen, fpout))<dlen) {
+	fprintf(stderr, "Problems writing %d bytes, return gives %d\n",dlen,ll);
+       }
+     }
+
      return(ner);
 }     
      
 
-int pass1()
+static int pass1(void)
 {
-     static char o[MAXLINE];
-     static int l,er;
-/*     int i;*/
+     signed char o[MAXLINE];
+     int l,er, al;
 
+     tlen=0;
      ner=0;
-
      while(!(er=getline(s)))
      {         
+          er=t_p1((signed char*)s,o,&l,&al);
+	  switch(segment) {
+	    case SEG_ABS:
+	    case SEG_TEXT: tlen += al; break;
+	    case SEG_DATA: dlen += al; break;
+	    case SEG_BSS : blen += al; break;
+	    case SEG_ZERO: zlen += al; break;
+	  }
 
-          er=t_p1(s,o,&l);
+          /*printf(": er= %d, l=%d, tmpz=%d\n",er,l,tmpz);*/
 
-/*          printf(": er= %d, l=%d, tmpz=%d\n",er,l,tmpz);
-*/
           if(l)
           {
             if(er)
@@ -389,7 +619,7 @@ int pass1()
                errout(er);
           }
 
-/*          printf("tmpz =%d\n",tmpz);
+/*          printf("tmpz =%d\n",afile->mn.tmpz);
 */
      } 
 
@@ -398,37 +628,56 @@ int pass1()
 
           
 
-     /*printf("Pass 1 \n");
-     for(i=0;i<tmpz;i++)
-          printf(" %02x",tmp[i]);
-     getchar();*/
+     /*{ int i; printf("Pass 1 \n");
+     for(i=0;i<afile->mn.tmpz;i++)
+          fprintf(stderr, " %02x",afile->mn.tmp[i]);
+     getchar();}*/
 
      return(ner);
 }
 
 
-void usage()
+static void usage(void)
 {
-     printf("xAss65 usage : Sourcefile1 [ ... Sourcefilen]\n"
-            "         [-oObjectfile] [-eErrorfile] [-lLabelfile]\n"
-            "further options:\n"
-            " -c      =  no CMOS-opcodes\n"
+     fprintf(stderr, "%s",copyright);
+     fprintf(stderr, "usage : xa { option | sourcefile }\n"
+	    "options:\n"
+	    " -v          = verbose output\n"
+	    " -x          = old filename behaviour (overrides -o, -e, -l)\n"
+            " -C          = no CMOS-opcodes\n"
+            " -B          = show lines with block open/close\n"
+            " -c          = produce o65 object instead of executable files (i.e. do not link)\n"
+	    " -o filename = sets output filename, default is 'a.o65'\n"
+	    "               A filename of '-' sets stdout as output file\n"
+	    " -e filename = sets errorlog filename, default is none\n"
+	    " -l filename = sets labellist filename, default is none\n"
+	    " -M          = allow \":\" to appear in comments, for MASM compatibility\n"
+	    " -R          = start assembler in relocating mode\n"
+	    " -Llabel     = defines 'label' as absolute, undefined label even when linking\n"
+	    " -b? adr     = set segment base address to integer value adr. \n"
+	    "               '?' stands for t(ext), d(ata), b(ss) and z(ero) segment\n"
+            "               (address can be given more than once, latest is taken)\n"
+	    " -A adr      = make text segment start at an address that when the _file_\n"
+	    "               starts at adr, relocation is not necessary. Overrides -bt\n"
+	    "               Other segments have to be take care of with -b?\n"
+ 	    " -G          = suppress list of exported globals\n"
+	    " -DDEF=TEXT  = defines a preprocessor replacement\n"
             "Environment:\n"
-            " XAINPUT = include files path\n"
-            " XAOUTPUT= output files path\n"
-            "press <Return>\n");
-     getchar();
+            " XAINPUT = include file path; components divided by ','\n"
+            " XAOUTPUT= output file path\n"
+	);
 }
 
-#define   ANZERR    25
+#define   ANZERR    30
+#define   ANZWARN   3
 
 /*
 static char *ertxt[] = { "Syntax","Label definiert",
           "Label nicht definiert","Labeltabelle voll",
           "Label erwartet","Speicher voll","Illegaler Opcode",
-          "Falsche Adressierungsart","Branch aužerhalb des Bereichs",
-          "šberlauf","Division durch Null","Pseudo-Opcode erwartet",
-          "Block-Stack-šberlauf","Datei nicht gefunden",
+          "Falsche Adressierungsart","Branch ausserhalb des Bereichs",
+          "Ueberlauf","Division durch Null","Pseudo-Opcode erwartet",
+          "Block-Stack-Ueberlauf","Datei nicht gefunden",
           "End of File","Block-Struktur nicht abgeschlossen",
           "NoBlk","NoKey","NoLine","OKDef","DSB","NewLine",
           "NewFile","CMOS-Befehl","pp:Falsche Anzahl Parameter" };
@@ -436,58 +685,66 @@ static char *ertxt[] = { "Syntax","Label definiert",
 static char *ertxt[] = { "Syntax","Label defined",
           "Label not defined","Labeltab full",
           "Label expected","no more memory","Illegal opcode",
-          "Wrong addressing mode","Branch out of ranges",
+          "Wrong addressing mode","Branch out of range",
           "Overflow","Division by zero","Pseudo-opcode expected",
           "Block stack overflow","file not found",
-          "End of file","Block structure not closed",
+          "End of file","Too many block close",
           "NoBlk","NoKey","NoLine","OKDef","DSB","NewLine",
-          "NewFile","CMOS-Befehl","pp:Wrong parameter count" };
+          "NewFile","CMOS-Befehl","pp:Wrong parameter count",
+	  "Illegal pointer arithmetic", "Illegal segment",
+	  "File header option too long",
+	  "File Option not at file start (when ROM-able)",
+	  "Illegal align value",
+	  /* warnings start here */	
+	  "Cutting word relocation in byte value",
+	  "Byte relocation in word value",
+	  "Illegal pointer arithmetic" };
 
-int gl;
-int gf;  
+static int gl;
+static int gf;  
 
-int x_init()
+static int x_init(void)
 {
-     int er;
-     gl=0;
-     gf=0;    
-     er=m_alloc(TMPMEM,&tmp);
-     tmpz=0L;
+	return 0;
+#if 0
+     int er=0;
+     /*er=m_alloc(TMPMEM,&tmp);*/
+     afile->mn.tmp=malloc(TMPMEM);
+     if(!afile->mn.tmp) er=E_NOMEM;
+     afile->mn.tmpz=0L;
      return(er);
+#endif
 }
 
-puttmp(c)
-int c;
+static int puttmp(int c)
 {
      int er=E_NOMEM;
-     if(tmpz<TMPMEM)
+/*printf("puttmp: afile=%p, tmp=%p, tmpz=%d\n",afile, afile?afile->mn.tmp:0, afile?afile->mn.tmpz:0);*/
+     if(afile->mn.tmpz<TMPMEM)
      {
-          tmp[tmpz++]=c;
+          afile->mn.tmp[afile->mn.tmpz++]=c;
           er=E_OK;
      }
      return(er);
 }
 
-puttmps(s,l)
-char *s;
-int l;
+static int puttmps(signed char *s, int l)
 {
      int i=0,er=E_NOMEM;
      
-     if(tmpz+l<TMPMEM)
+     if(afile->mn.tmpz+l<TMPMEM)
      {
           while(i<l)
-               tmp[tmpz++]=s[i++];
+               afile->mn.tmp[afile->mn.tmpz++]=s[i++];
 
           er=E_OK;
      }
      return(er);
 }
 
-char l[MAXLINE];
+static char l[MAXLINE];
 
-int getline(s)
-char *s;
+static int getline(char *s)
 {
      static int ec;
      static int i,c;
@@ -522,7 +779,8 @@ char *s;
                     puttmp(T_FILE);
                     puttmp((filep->fline)&255);
                     puttmp(((filep->fline)>>8)&255);
-                    puttmps(filep->fname,1+(int)strlen(filep->fname));
+                    puttmps((signed char*)filep->fname,
+					1+(int)strlen(filep->fname));
                     ec=E_OK;
                }
           } while(!ec && l[i]=='\0');
@@ -538,7 +796,7 @@ char *s;
                     hkfl^=1;
                if (c=='\0')
                     break;
-               if (c==':' && !hkfl)
+               if ((!masm) && c==':' && !hkfl)
                {
                     gl=1;
                     break;
@@ -553,7 +811,11 @@ char *s;
      return(ec);
 }
 
-void lineout()
+void set_align(int a) {
+	align = (a>align)?a:align;
+}
+
+static void lineout(void)
 {
      if(gf)
      {
@@ -563,38 +825,41 @@ void lineout()
      }
 }
 
-void errout(er)
-int er;
+void errout(int er)
 {
-     if (er<-ANZERR || er>-1)
-          /* sprintf(out,"%s:Zeile %d: %04x:Unbekannter Fehler Nr.: %d\n",*/
+     if (er<-ANZERR || er>-1) {
+	if(er>=-(ANZERR+ANZWARN) && er < -ANZERR) {
+	  sprintf(out,"%s:line %d: %04x: Warning - %s\n",
+		filep->fname, filep->fline, pc[segment], ertxt[-er-1]);
+	} else {
+          /* sprintf(out,"%s:Zeile %d: %04x:Unbekannter Fehler Nr.: %d\n",*/
           sprintf(out,"%s:line %d: %04x: Unknown error # %d\n",
-               filep->fname,filep->fline,pc,er);
-     else 
-     if (er==E_NODEF)
+               filep->fname,filep->fline,pc[segment],er);
+	  ner++;
+	}
+     } else {
+       if (er==E_NODEF)
           sprintf(out,"%s:line %d: %04x:Label '%s' not defined\n",
-               filep->fname,filep->fline,pc,lz);
-     else  
+               filep->fname,filep->fline,pc[segment],lz);
+       else  
           sprintf(out,"%s:line %d: %04x:%s error\n",
-               filep->fname,filep->fline,pc,ertxt[-er-1]);
+               filep->fname,filep->fline,pc[segment],ertxt[-er-1]);
 
+       ner++;
+     }
      logout(out);
- 
-     ner++;
 }
 
-void chrput(c)
-int c;
+static void chrput(int c)
 {
      /*     printf(" %02x",c&255);*/
 
      putc( c&0x00ff,fpout);
 }
 
-void logout(s)
-char *s;
+void logout(char *s)
 {
-     printf("%s",s);
+     fprintf(stderr, "%s",s);
      if(fperr)
           fprintf(fperr,"%s",s);
 }

@@ -1,3 +1,22 @@
+/*
+    xa65 - 6502 cross assembler and utility suite
+    uncpk - handle cpk archive files
+    Copyright (C) 1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
 
 #include <stdio.h>
 #include <string.h>
@@ -19,7 +38,7 @@ void usage(int er) {
 int list=0,verbose=0,add=0,create=0;
 
 int main(int argc, char *argv[]){
-	int i,c,c2,fileok;
+	int i,c,c2,fileok, nc;
 	size_t n,n2;
 	FILE *fp,*fpo=NULL;
 
@@ -56,7 +75,7 @@ int main(int argc, char *argv[]){
 	     if(verbose) printf("%s\n",argv[i]);
 	     fp=fopen(argv[i],"rb");
 	     if(fp) {
-	       while(s=strchr(argv[i],':')) *s='/';
+	       while((s=strchr(argv[i],':'))) *s='/';
 	       fprintf(fpo,"%s",argv[i]);
 	       fputc(0,fpo);
 	       c=fgetc(fp);
@@ -97,13 +116,13 @@ int main(int argc, char *argv[]){
 	    do{
 	      /* read name */
 	      i=0;
-	      while(c=fgetc(fp)){
+	      while((c=fgetc(fp))){
 	        if(c==EOF) break;
 	        name[i++]=c;
 	      }
 	      name[i++]='\0';
 	      if(!c){	/* end of archive ? */
-	        while(s=strchr(name,'/')) *s=':';
+	        while((s=strchr(name,'/'))) *s=':';
 
 	        if(verbose+list) printf("%s\n",name);
 
@@ -117,15 +136,16 @@ int main(int argc, char *argv[]){
 	        while((c=fgetc(fp))!=EOF){
 		  /* test if 'compressed' */
 	          if(c==0xf7){
-	            n=fgetc(fp);
-	            if(!n) {
+	            nc=fgetc(fp);
+	            if(!nc) {
 		      fileok=1;
 	              break;
 	            }
 	            c=fgetc(fp);
 	            if(fpo) {		/* extract */
-	              if(n!=EOF && c!=EOF) {
-	                while(n--) {
+	              if(nc!=EOF && c!=EOF) {
+			nc &= 255;
+	                while(nc--) {
 	                  fputc(c,fpo);
 	                }
 	              }

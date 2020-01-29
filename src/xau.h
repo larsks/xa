@@ -19,12 +19,6 @@
 */
 
 
-typedef struct {
-     char fname[MAXLINE];
-     int  fline;
-     int  bdepth;
-     FILE *filep;
-     char *flinep;
-} Datei;
-
+extern int u_label(int labnr);
+extern void u_write(FILE *fp);
 

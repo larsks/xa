@@ -1,24 +1,54 @@
+
+/*
+    xa65 - 6502 cross assembler and utility suite
+    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#include <stdio.h>
  
 #include "xah.h"
 
-int pr[]= { P_START,P_ADD,P_ADD,P_MULT,P_MULT,P_SHIFT,P_SHIFT,P_CMP,
+#include "xar.h"
+#include "xa.h"
+#include "xal.h"
+#include "xaa.h"
+#include "xat.h"
+
+static int pr[]= { P_START,P_ADD,P_ADD,P_MULT,P_MULT,P_SHIFT,P_SHIFT,P_CMP,
             P_CMP,P_EQU,P_CMP,P_CMP,P_EQU,P_AND,P_XOR,P_OR,
             P_LAND,P_LOR };
 
-int pp,pcc;
+static int pp,pcc;
+static int fundef;
 
-int ag_term(char*,int,int*);
-extern int l_get(int,int*);
-int get_op(char*,int*);
-int do_op(int*,int,int);
+static int ag_term(signed char*,int,int*,int*,int*);
+static int get_op(signed char*,int*);
+static int do_op(int*,int,int);
 
 #define   cval(s)   256*((s)[1]&255)+((s)[0]&255)
 
-int a_term(s,v,l,xpc)
-char *s;
-int *v,*l,xpc;
+int a_term(signed char *s, int *v, int *l, int xpc, int *pfl, int *label, int f)
 {
      int er=E_OK;
+     int afl;
+
+     *pfl = 0;
+     fundef = f;
 
      pp=0;
      pcc=xpc;
@@ -26,28 +56,33 @@ int *v,*l,xpc;
      if(s[0]=='<')
      {
           pp++;
-          er=ag_term(s,P_START,v);
+          er=ag_term(s,P_START,v,&afl, label);
+	  if(afl) *pfl=A_LOW | (afl<<8);
           *v = *v & 255;
      } else
      if(s[0]=='>')
      {    
           pp++;
-          er=ag_term(s,P_START,v);
+          er=ag_term(s,P_START,v,&afl, label);
+	  if(afl) *pfl=A_HIGH | (afl<<8) | (*v & 255);
           *v=(*v>>8)&255;
      }
-     else
-          er=ag_term(s,P_START,v);
+     else {
+          er=ag_term(s,P_START,v,&afl, label);
+	  if(afl) *pfl = A_ADR | (afl<<8);
+     }
 
      *l=pp;
      return(er);
 }
 
-ag_term(s,p,v)
-char *s;
-int p,*v;
+static int ag_term(signed char *s, int p, int *v, int *nafl, int *label)
 {
-     int er=E_OK,o,w,mf=1;
+     int er=E_OK,o,w,mf=1,afl;
 
+     afl = 0;
+
+/*printf("ag_term(%02x %02x %02x %02x %02x %02x\n",s[0],s[1],s[2],s[3],s[4],s[5]);*/
      while(s[pp]=='-')
      {
           pp++;
@@ -57,7 +92,7 @@ int p,*v;
      if(s[pp]=='(')
      {
           pp++;
-          if(!(er=ag_term(s,P_START,v)))
+          if(!(er=ag_term(s,P_START,v,&afl,label)))
           {
                if(s[pp]!=')')
                     er=E_SYNTAX;
@@ -67,7 +102,17 @@ int p,*v;
      } else
      if(s[pp]==T_LABEL)
      {
-          er=l_get(cval(s+pp+1),v);
+          er=l_get(cval(s+pp+1),v, &afl);
+/*printf("label: er=%d, seg=%d, afl=%d, nolink=%d, fundef=%d\n", 
+			er, segment, afl, nolink, fundef);*/
+	  if(er==E_NODEF && segment != SEG_ABS && fundef ) {
+	    if( nolink || (afl==SEG_UNDEF)) {
+	      er = E_OK;
+	      *v = 0;
+	      afl = SEG_UNDEF;
+	      *label = cval(s+pp+1);
+	    }
+	  }
           pp+=3;
      }
      else
@@ -77,10 +122,18 @@ int p,*v;
           pp+=3;
      }
      else
+     if(s[pp]==T_POINTER)
+     {
+	  afl = s[pp+1];
+          *v=cval(s+pp+2);
+          pp+=4;
+     }
+     else
      if(s[pp]=='*')
      {
           *v=pcc;
           pp++;
+	  afl = segment;
      }
      else
           er=E_SYNTAX;
@@ -94,19 +147,37 @@ int p,*v;
           if(!er && pr[o]>p)
           {
                pp+=1;
-               if(!(er=ag_term(s,pr[o],&w)))
+               if(!(er=ag_term(s,pr[o],&w, nafl, label)))
                {
-                    er=do_op(v,w,o);
+		    if(afl || *nafl) {	/* check pointer arithmetic */
+		      if((afl == *nafl) && (afl!=SEG_UNDEF) && o==2) {
+			afl = 0; 	/* substract two pointers */
+		      } else 
+		      if(((afl && !*nafl) || (*nafl && !afl)) && o==1) {
+			afl=(afl | *nafl);  /* add constant to pointer */
+		      } else 
+		      if((afl && !*nafl) && o==2) {
+			afl=(afl | *nafl);  /* substract constant from pointer */
+		      } else {
+			if(segment!=SEG_ABS) { 
+			  if(!dsb_len) {
+			    er=E_ILLPOINTER;
+			  }
+			}
+			afl=0;
+		      }
+		    }
+                    if(!er) er=do_op(v,w,o);
                }
-          } else
+          } else {
                break;
+	  }
      }
+     *nafl = afl;
      return(er);
 }
 
-int get_op(s,o)
-char *s;
-int *o;
+static int get_op(signed char *s, int *o)
 {
      int er;
 
@@ -120,8 +191,7 @@ int *o;
      return(er);
 }
          
-int do_op(w,w2,o)
-int *w,w2,o;
+static int do_op(int *w,int w2,int o)
 {
      int er=E_OK;
      switch (o) {

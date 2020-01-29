@@ -19,12 +19,7 @@
 */
 
 
-typedef struct {
-     char fname[MAXLINE];
-     int  fline;
-     int  bdepth;
-     FILE *filep;
-     char *flinep;
-} Datei;
-
+/* f=0 -> labels muessen da sein, f=1 -> SEG_UNDEF entry */
+extern int a_term(signed char *s, int *v, int *l, int xpc, int *afl, 
+						int *label, int f);
 
