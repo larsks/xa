@@ -861,7 +861,7 @@ int pgetline(char *t)
 	    c=fgetline(in_line + tlen-1, MAXLINE-tlen, &rlen, flist[fsp].filep);
 	    tlen += rlen-1;
 	  }
-          if(in_line[0]=='#')
+          if(in_line[0]=='#' || in_line[0] == altppchar)
           {
 		if (in_line[1]==' ') { /* cpp comment -- pp_comand doesn't
 					handle this right */

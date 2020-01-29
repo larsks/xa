@@ -1,4 +1,4 @@
-.TH XA "1" "31 January 2007"
+.TH XA "1" "8 August 2008"
 
 .SH NAME
 xa \- 6502/R65C02/65816 cross-assembler
@@ -104,7 +104,7 @@ Suppress list of exported globals.
 Define a preprocessor macro on the command line (see
 .BR PREPROCESSOR ).
 .TP
-.B \-Idir
+.B \-I dir
 Add directory 
 .B dir
 to the include path (before
@@ -115,6 +115,17 @@ see
 .B \-O charset 
 Define the output charset for values in quotes. Currently supported are ASCII
 (default) and PETSCII.
+.TP
+.B \-p?
+Set the alternative preprocessor character to
+.BR ? .
+This is useful when you wish to use
+.BR cpp (1)
+and the built-in preprocessor at the same time (see
+.BR PREPROCESSOR ).
+Characters may need to be quoted for your shell (example:
+.B \-p'~'
+).
 .TP
 .B \-\-help
 Show summary of options.
@@ -442,6 +453,21 @@ will be inserted into the assembled object. For example,
 will insert five bytes, each being 16 decimal, into the object. The arguments
 may be expressions.
 .TP
+.B .bin offset,length,"filename"
+Inlines a binary file without further interpretation specified by
+.B filename
+from offset
+.B offset
+to length
+.BR length .
+This allows you to insert data such as a previously assembled object file
+or an image or other binary data structure, inlined directly into this
+file's object. If
+.B length
+is zero, then the length of
+.BR filename ,
+minus the offset, is used instead. The arguments may be expressions.
+.TP
 .B \&.(
 Opens a new block for scoping. Within a block, all labels defined are local to
 that block and any sub-blocks, and go out of scope as soon as the enclosing
@@ -552,11 +578,7 @@ line/filename/flags output. When these lines are seen in the input file,
 .B xa
 will treat them as
 .B cc
-would, except that flags are ignored. Note that passing your file through
-.BR cpp (1)
-will not allow you to use
-.BR xa 's
-non-standard directives, so you may need to add them manually to the output.
+would, except that flags are ignored.
 .B xa
 does not accept files on standard input for parsing reasons, so you should
 dump your
@@ -572,6 +594,36 @@ No special arguments need to be passed to
 the presence of
 .BR cpp (1)
 output is detected automatically.
+.LP
+Note that passing your file through
+.BR cpp (1)
+may interfere with
+.BR xa 's
+own preprocessor directives. In this case, to mask directives from
+.BR cpp (1),
+use the
+.B \-p
+option to specify an alternative character instead of
+.BR # ,
+such as the tilde (e.g.,
+.B \-p'~'
+). With this option and argument specified, then instead of
+.BR #include ,
+for example, you can also use
+.BR ~include ,
+in addition to
+.B #include 
+(which will also still be accepted by the
+.B xa
+preprocessor, assuming any survive
+.BR cpp (1)).
+Any character can be used, although frankly pathologic choices may lead
+to amusing and frustrating glitches during parsing.
+You can also use this option to defer preprocessor directives that
+.BR cpp (1)
+may interpret too early until the file actually gets to
+.B xa
+itself for processing.
 .LP
 The following preprocessor directives are supported.
 
@@ -765,7 +817,7 @@ This manual page was written by David Weinehall <tao@acc.umu.se>,
 Andre Fachat <fachat@web.de>
 and Cameron Kaiser <ckaiser@floodgap.com>.
 Original xa package (C)1989-1997 Andre Fachat. Additional changes
-(C)1989-2007 Andre Fachat, Jolse Maginnis, David Weinehall,
+(C)1989-2008 Andre Fachat, Jolse Maginnis, David Weinehall,
 Cameron Kaiser. The official maintainer is Cameron Kaiser.
 
 .SH WEBSITE

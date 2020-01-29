@@ -58,4 +58,4 @@ install: xa uncpk
 	#$(MKDIR) $(DOCDIR)/xa65
 
 dist: clean
-	cd .. ; tar cvf xa-2.3.3.tar xa-2.3.3 ; gzip xa-2.3.3.tar
+	cd .. ; tar cvf xa-2.3.4.tar xa-2.3.4 ; gzip xa-2.3.4.tar

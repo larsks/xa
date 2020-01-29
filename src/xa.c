@@ -48,16 +48,16 @@
 
 #include "version.h"
 
-/* ANZERR: total number in ertxt[]
-   ANZERR-ANZWARN-1: first index to non-fatal warnings */
+/* ANZERR: total number of errors */
+/* ANZWARN: total number of warnings */
 
-#define ANZERR		35
-#define ANZWARN		8
+#define ANZERR		64
+#define ANZWARN		13
 
 #define programname	"xa"
-#define progversion	"v2.3.3"
+#define progversion	"v2.3.4"
 #define authors		"Written by Andre Fachat, Jolse Maginnis, David Weinehall and Cameron Kaiser"
-#define copyright	"Copyright (C) 1989-2007 Andre Fachat, Jolse Maginnis, David Weinehall\nand Cameron Kaiser."
+#define copyright	"Copyright (C) 1989-2008 Andre Fachat, Jolse Maginnis, David Weinehall\nand Cameron Kaiser."
 
 /* exported globals */
 int ncmos, cmosfl, w65816, n65816;
@@ -68,6 +68,7 @@ int romaddr = 0;
 int noglob = 0;
 int showblk = 0;
 int crossref = 0;
+char altppchar;
 
 /* local variables */
 static char out[MAXLINE];
@@ -132,6 +133,8 @@ int main(int argc,char *argv[])
      cmosfl=1;
      w65816=0;	/* default: 6502 only */
 
+     altppchar = '#' ; /* i.e., NO alternate char */
+
      if((tmpp = strrchr(argv[0],'/'))) {
 	tmpp++;
      } else {
@@ -188,6 +191,22 @@ int main(int argc,char *argv[])
      while(i<argc) {
 	if(argv[i][0]=='-') {
 	  switch(argv[i][1]) {
+	  case 'p':
+		/* intentionally not allowing an argument to follow with a
+			space to avoid - being seen as the alternate
+			preprocessor char! */
+		if (argv[i][2] == '\0') {
+			fprintf(stderr, "-p requires a character argument\n");
+			exit(1);
+		}
+		if (argv[i][2] == '#')
+			fprintf(stderr,
+				"using -p# is evidence of stupidity\n");
+		altppchar = argv[i][2];
+		if (argv[i][3] != '\0')
+			fprintf(stderr,
+				"warning: extra characters to -p ignored\n");
+		break;
 	  case 'M':
 		masm = 1;	/* MASM compatibility mode */
 		break;
@@ -297,7 +316,7 @@ int main(int argc,char *argv[])
 			else zbase = atoi(argv[i]+3);
 			break;
 		default:
-			fprintf(stderr,"unknow segment type '%c' - ignoring!\n",
+			fprintf(stderr,"unknown segment type '%c' - ignoring!\n",
 								argv[i][2]);
 			break;
 		}
@@ -628,7 +647,7 @@ static int pass2(void)
           {
 /* do not attempt address mode optimization on pass 2 */
                er=t_p2(afile->mn.tmp+afile->mn.tmpe,&ll,1,&al);
-          
+
                if(er==E_NOLINE)
                {
                } else
@@ -653,8 +672,69 @@ static int pass2(void)
 		    memset(datap, c, ll);
 		    datap+=ll;
 		  }
-               } else
-               {
+               } else if (er == E_BIN) {
+			int i;
+			int j;
+			int flen;
+			int offset;
+			int fstart;
+			FILE *foo;
+			char binfnam[256];
+
+			i = afile->mn.tmpe;
+/*
+			fprintf(stderr, "ok, ready to insert\n");
+			for (i=0; i<ll; i++) {
+fprintf(stderr, "%i: %02x\n", i, afile->mn.tmp[afile->mn.tmpe+i]);
+			}
+*/
+
+			offset = afile->mn.tmp[i] +
+				(afile->mn.tmp[i+1] << 8) +
+				(afile->mn.tmp[i+2] << 16);
+			fstart = afile->mn.tmp[i+3] + 1 +
+				(afile->mn.tmp[i+4] << 8);
+			/* usually redundant but here for single-char names
+				that get interpreted as chars */
+			flen = afile->mn.tmp[i+5];
+			if (flen > 1) fstart++; 
+			/* now fstart points either to string past quote and
+				length mark, OR, single char byte */
+/*
+fprintf(stderr, "offset = %i length = %i fstart = %i flen = %i charo = %c\n",
+		offset, ll, fstart, flen, afile->mn.tmp[afile->mn.tmpe+fstart]);
+*/
+			/* there is a race condition here where altering the
+				file between validation in t_p2 (xat.c) and
+				here will cause problems. I'm not going to
+				worry about this right now. */
+
+			for(j=0; j<flen; j++) {
+				binfnam[j] = afile->mn.tmp[i+fstart+j];
+			}
+			binfnam[flen] = '\0';
+/*
+			fprintf(stderr, "fnam = %s\n", binfnam);
+*/
+			/* primitive insurance */
+			if (!(foo = fopen(binfnam, "r"))) {
+				errout(E_FNF);
+				ner++;
+			} else {
+				fseek(foo, offset, SEEK_SET);
+				for(j=0; j<ll; j++) {
+					/* damn you Andre ;-) */
+					i = fgetc(foo);
+					if (segment<SEG_DATA) {
+						chrput(i);
+					}
+					if (segment==SEG_DATA && datap) {
+						memset(datap++, i, 1);
+					}
+				}
+				fclose(foo);
+			}			
+		} else {
                     errout(er);
                }
           }
@@ -723,8 +803,10 @@ static int pass1(void)
 */
      } 
 
-     if(er!=E_EOF)
+     if(er!=E_EOF) {
+	fprintf(stderr, "foul through\n");
           errout(er);
+	}
 
           
 
@@ -792,23 +874,73 @@ static char *ertxt[] = { "Syntax","Label definiert",
           "NoBlk","NoKey","NoLine","OKDef","DSB","NewLine",
           "NewFile","CMOS-Befehl","pp:Falsche Anzahl Parameter" };
 */
-static char *ertxt[] = { "Syntax","Label defined",
-          "Label not defined","Labeltab full",
-          "Label expected","no more memory","Illegal opcode",
-          "Wrong addressing mode","Branch out of range",
-          "Overflow","Division by zero","Pseudo-opcode expected",
-          "Block stack overflow","file not found",
-          "End of file","Unmatched block close",
-          "NoBlk","NoKey","NoLine","OKDef","DSB","NewLine",
-          "NewFile","CMOS-Befehl","pp:Wrong parameter count",
-	  "Illegal pointer arithmetic", "Illegal segment",
-	  "File header option too long",
-	  "File Option not at file start (when ROM-able)",
-	  "Illegal align value",
-          "65816 code used",
-	  "Exceeded recursion limit for label evaluation",
-	  "Unresolved preprocessor directive at end of file",
-	  /* warnings here */
+static char *ertxt[] = {
+	"Syntax",
+	"Label already defined",
+        "Label not defined",
+	"Label table full",
+        "Label expected",
+	"Out of memory",
+	"Illegal opcode",
+        "Wrong addressing mode",
+	"Branch out of range",
+        "Overflow",
+	"Division by zero",
+	"Pseudo-opcode expected",
+        "Block stack overflow",
+	"File not found",
+        "End of file",
+	"Unmatched block close",
+        "NoBlk",
+	"NoKey",
+	"NoLine",
+	"OKDef",
+	"DSB",
+	"NewLine",
+        "NewFile",
+	"CMOS-Befehl",
+	"pp:Wrong parameter count",
+	"Illegal pointer arithmetic", 
+	"Illegal segment",
+	"File header option too long",
+	"File option not at file start (when ROM-able)",
+	"Illegal align value",
+        "65816 mode used/required",
+	"Exceeded recursion limit for label evaluation",
+	"Unresolved preprocessor directive at end of file",
+	"Data underflow",
+	"Illegal quantity",
+	".bin",
+/* placeholders for future fatal errors */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+/* warnings */
 	  "Cutting word relocation in byte value",
 	  "Byte relocation in word value",
 	  "Illegal pointer arithmetic",
@@ -817,6 +949,13 @@ static char *ertxt[] = { "Syntax","Label defined",
 	  "Low byte access to high byte pointer",
 	  "Can't optimize forward-defined label; using absolute addressing",
 	  "Open preprocessor directive at end of file (intentional?)",
+	  "Included binary data exceeds 64KB",
+	  "Included binary data exceeds 16MB",
+/* more placeholders */
+		"",
+		"",
+		"",
+
  };
 
 static int gl;
@@ -956,7 +1095,7 @@ void errout(int er)
      if (er<-ANZERR || er>-1) {
 	if(er>=-(ANZERR+ANZWARN) && er < -ANZERR) {
 	  sprintf(out,"%s:line %d: %04x: Warning - %s\n",
-		filep->fname, filep->fline, pc[segment], ertxt[-er-1]);
+		filep->fname, filep->fline, pc[segment], ertxt[(-er)-1]);
 	} else {
           /* sprintf(out,"%s:Zeile %d: %04x:Unbekannter Fehler Nr.: %d\n",*/
           sprintf(out,"%s:line %d: %04x: Unknown error # %d\n",
@@ -969,7 +1108,7 @@ void errout(int er)
                filep->fname,filep->fline,pc[segment],lz);
        else  
           sprintf(out,"%s:line %d: %04x:%s error\n",
-               filep->fname,filep->fline,pc[segment],ertxt[-er-1]);
+               filep->fname,filep->fline,pc[segment],ertxt[(-er)-1]);
 
        ner++;
      }

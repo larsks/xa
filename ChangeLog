@@ -274,3 +274,13 @@ xa-2.3.3
     Fabian Nunez and Mikkel Holm Olsen).
 
  -- Cameron Kaiser <ckaiser@floodgap.com> 15 May, 2007
+
+xa-2.3.4
+
+  * -p to define alternate synonym for # for preprocessor to avoid cpp/xa
+    preprocessor clashes and messes.
+  * Direct linking into output stream of binary files (.bin).
+  * Minor overhaul of error system to facilitate future expansion.
+  * Documentation updated.
+
+ -- Cameron Kaiser <ckaiser@floodgap.com> 1 July, 2008

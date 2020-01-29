@@ -13,8 +13,11 @@ ldoreloc/ 	Test case for the relocation table reading of ldo when undef'd
 comcom/		Comments-with-comments-with-commands-etc. for testing -M
 recmac/		Recursive macro evaluation testing
 openpp/		Testing of open #if*s in pp
+cpp/		Random preprocessor tests, mostly crap
 incerr/		1) .xl/.al should error without -w 2) error should be in
 		the correct file
+binclude/	Binary include code with some weird casing
+chppch/		Changing preprocessor characters (-p)
 
 Cameron Kaiser, André Fachat
 

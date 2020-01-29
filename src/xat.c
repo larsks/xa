@@ -75,7 +75,8 @@ static char *kt[] ={
 
      ".byt",".word",".asc",".dsb", ".(", ".)", "*=", ".text",".data",".bss",
      ".zero",".fopt", ".byte", ".end", ".list", ".xlist", ".dupb", ".blkb", ".db", ".dw",
-     ".align",".block", ".bend",".al",".as",".xl",".xs" /* 96 + 27 = 123 */
+     ".align",".block", ".bend",".al",".as",".xl",".xs", ".bin"
+		/* 96 + 28 = 124 */
 
 };
 
@@ -85,7 +86,7 @@ static int lp[]= { 0,1,1,1,1,2,2,1,1,1,2,2,2,1,1,1,2,2 };
 /* last valid mnemonic */
 #define   Lastbef   93
 /* last valid token+1 */
-#define   Anzkey    121
+#define   Anzkey    122
 
 #define   Kbyt      Lastbef+1
 #define   Kword     Lastbef+2
@@ -116,8 +117,12 @@ static int lp[]= { 0,1,1,1,1,2,2,1,1,1,2,2,2,1,1,1,2,2 };
 #define   Kxlong    Lastbef+26
 #define   Kxshort   Lastbef+27
 
+#define   Kbin      Lastbef+28
+
 #define   Kreloc    Anzkey   	/* *= (relocation mode) */
 #define   Ksegment  Anzkey+1
+
+/* array used for hashing tokens (26 entries, a-z) */
 
 static int ktp[]={ 0,3,17,25,28,29,29,29,29,32,34,34,38,40,41,42,58,
                58,65,76,90,90,90,92,94,94,94,Anzkey };
@@ -512,6 +517,113 @@ printf(" wrote %02x %02x %02x %02x %02x %02x\n",
 	      er=E_ILLSEGMENT;
 	    }                        */
 	  } else
+	if (n==Kbin) {
+		int j;
+		int l;
+
+		/* this first pass just calculates a prospective length
+			for pass 2. */
+		char binfnam[255];
+		int offset;
+		int length;
+		int fstart;
+
+		i = 1;
+		j = 0;
+
+		/* get offset */
+		if(!(er=a_term(t+i,&offset,&l,pc[segment],&afl,&label,1))) {
+			i += l;
+		}
+		if (offset < 0)
+			er = E_ILLQUANT;
+		if(t[i] == ',') { /* skip comma */
+			i++;
+		} else {
+			er = E_SYNTAX;
+		}
+
+		/* get length */
+		if (!er &&
+			!(er=a_term(t+i,&length,&l,pc[segment],&afl,&label,1)))
+		{
+			i += l;
+		}
+		if (length < 0)
+			er = E_ILLQUANT;
+		if(t[i] == ',') { /* skip comma */
+			i++;
+		} else {
+			er = E_SYNTAX;
+		}
+
+		/* get filename.
+		   the tokenizer can either see it as a multichar string ... */
+		if (!er) {
+		   int k;
+		
+		   fstart = i;
+		   if(t[i]=='\"') {
+			i++;
+			k=t[i]+i+1;
+			i++;
+			while(i<k && !er) {
+				binfnam[j++] = t[i++];
+				if (j > 255)
+					er = E_NOMEM; /* buffer overflow */
+			}
+			binfnam[j] = '\0';
+		/* or as a 'char' if it's a single character ("word" would
+			have been caught by the above) */
+		    } else
+			if(!(er=a_term(t+i,&v,&l,pc[segment],&afl,&label,1))) {
+			binfnam[0] = v;
+			binfnam[1] = '\0';
+			i += l;
+		    }
+		}
+
+		/* three arguments only please */
+		if (!er && t[i] != T_END) {
+			er = E_SYNTAX;
+		}
+
+		if (!er) {
+			FILE *foo;
+
+#ifdef DEBUG_AM
+			fprintf(stderr,
+"binclude1 offset = %i len = %i filename = %s endchar = %i\n",
+		offset, length, binfnam, i);
+#endif
+			if (!(foo = fopen(binfnam, "r"))) {
+				er = E_FNF;
+			} else {
+				fseek(foo, 0, SEEK_END);
+				if ((length+offset) > ftell(foo)) {
+					er = E_OUTOFDATA;
+				} else {
+					length = (length) ? length :
+						(ftell(foo)-offset);
+				}
+				fclose(foo);
+			}
+			if (!er) {
+				if (length > 65535 && !w65816) {
+					errout(W_OVER64K);
+				} else if (length > 16777215) {
+					errout(W_OVER16M);
+				}
+				/* pass parameters back to xa.c */
+				*ll=i+1;
+/*
+				bl=length+2;
+*/
+				bl=length;
+				er = E_OKDEF; /* defer to pass 2 */
+			}
+		}
+	} else
 	  if(n==Kalign) {
 	    int tmp;
 	    if(segment!=SEG_ABS) {
@@ -559,6 +671,9 @@ fprintf(stderr, "E_OK ... t_p2 xat.c\n");
  *
  */
 
+#ifdef DEBUG_AM
+fprintf(stderr, "E_NODEF pass1 xat.c\n");
+#endif
 	er = E_OK; /* stuff error */
           n=t[0];	/* look at first token */
 
@@ -661,6 +776,9 @@ fprintf(stderr, "E_OK ... t_p2 xat.c\n");
           } else
           if(n==Kbyt || n==Kasc)
           {
+#ifdef DEBUG_AM
+fprintf(stderr, "byt pass 1 %i\n", nk+1-na1+na2);
+#endif
                bl=nk+1-na1+na2;
           } else
           if(n==Kword)
@@ -813,9 +931,125 @@ int t_p2(signed char *t, int *ll, int fl, int *al)
                }
                *ll=j;
                bl=j;
-          } else
-          if(n==Kasc || n==Kbyt)
-          {
+          } else if (n == Kbin) {
+		int j;
+		int l;
+
+		/* figure out our parameters again. repeat most of
+			the error checking since we might not be over
+			the total number of bogosities */
+		char binfnam[255];
+		int offset;
+		int length;
+		int fstart;
+		int flen;
+
+		i = 1;
+		j = 0;
+		flen = 0;
+
+		/* get offset */
+		if(!(er=a_term(t+i,&offset,&l,pc[segment],&afl,&label,1))) {
+			i += l;
+		}
+		if (offset < 0)
+			er = E_ILLQUANT;
+		if(t[i] == ',') { /* skip comma */
+			i++;
+		} else {
+			er = E_SYNTAX;
+		}
+
+		/* get length */
+		if (!er &&
+			!(er=a_term(t+i,&length,&l,pc[segment],&afl,&label,1)))
+		{
+			i += l;
+		}
+		if (length < 0)
+			er = E_ILLQUANT;
+		if(t[i] == ',') { /* skip comma */
+			i++;
+		} else {
+			er = E_SYNTAX;
+		}
+
+		/* get filename.
+		   the tokenizer can either see it as a multichar string ... */
+		if (!er) {
+		   int k;
+		
+		   fstart = i;
+		   if(t[i]=='\"') {
+			i++;
+			k=t[i]+i+1;
+			i++;
+			while(i<k && !er) {
+				binfnam[j++] = t[i++];
+				if (j > 255)
+					er = E_NOMEM; /* buffer overflow */
+			}
+			binfnam[j] = '\0';
+			flen = j;
+		/* or as a 'char' if it's a single character ("word" would
+			have been caught by the above) */
+		    } else
+			if(!(er=a_term(t+i,&v,&l,pc[segment],&afl,&label,1))) {
+			binfnam[0] = v;
+			binfnam[1] = '\0';
+			i += l;
+			flen = 1;
+		    }
+		}
+
+		/* three arguments only please */
+		if (!er && t[i] != T_END) {
+			er = E_SYNTAX;
+		}
+
+		if (!er) {
+			FILE *foo;
+
+#ifdef DEBUG_AM
+			fprintf(stderr,
+"binclude2 offset = %i len = %i filename = %s endchar = %i\n",
+		offset, length, binfnam, i);
+#endif
+			if (!(foo = fopen(binfnam, "r"))) {
+				er = E_FNF;
+			} else {
+				fseek(foo, 0, SEEK_END);
+				if ((length+offset) > ftell(foo)) {
+					er = E_OUTOFDATA;
+				} else {
+					length = (length) ? length :
+						(ftell(foo)-offset);
+				}
+				fclose(foo);
+			}
+			if (!er) {
+				if (length > 65535 && !w65816) {
+					errout(W_OVER64K);
+				} else if (length > 16777215) {
+					errout(W_OVER16M);
+				}
+				/* pass parameters back to xa.c */
+				*ll=length;
+/*
+				bl=length+2;
+*/
+				bl=length;
+				t[0] = offset & 255;
+				t[1] = (offset >> 8) & 255;
+				t[2] = (offset >> 16) & 255;
+				/* God help us if the index is > 65535 */
+				t[3] = fstart & 255;
+				t[4] = (fstart >> 8) & 255;
+				t[5] = flen; /* to massage 'char' types */
+				er = E_BIN;
+			}
+		}
+	} else if(n==Kasc || n==Kbyt) {
                i=1;
                j=0;
                while(!er && t[i]!=T_END)
@@ -927,6 +1161,9 @@ int t_p2(signed char *t, int *ll, int fl, int *al)
                          {
                               *ll=j;
                               bl=j;
+#ifdef DEBUG_AM
+fprintf(stderr, "Kdsb E_DSB %i\n", j);
+#endif
                               er=E_DSB;
                          }
                     }
@@ -1268,6 +1505,9 @@ fprintf(stderr, "address mode: %i address: %i\n", am, vv[0]);
           } else
                er=E_SYNTAX;
      }
+#ifdef DEBUG_AM
+fprintf(stderr, "-- endof P2\n");
+#endif
      pc[segment]+=bl;
      if(segment==SEG_TEXT) pc[SEG_ABS]+=bl;
      if(segment==SEG_ABS) pc[SEG_TEXT]+=bl;
