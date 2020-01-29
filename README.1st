@@ -1,0 +1,58 @@
+--------------------------------------------------------------------------
+This is the README file for the package 'xa', written by A.Fachat. 
+
+The package 'xa' is provided 'as is', no warranty will be taken
+for any damage caused by it or by any use of it.
+
+The package contains the source code for the Cross assembler 'xa'
+as well as example programms and the rest of this directory tree.
+
+The current version for 'xa' is 2.0.7c
+
+The whole package is placed under the GNU Public License, for further
+information on redistribution see the included file "COPYING".
+--------------------------------------------------------------------------
+
+No further support is planned, as it is a long time ago that I 
+used it the last time. The programm has been developed on an Atari ST,
+and ported to a Linux system. It may be that on Linux some features
+will fail or the programm does some unexpected things. I haven't 
+tested it too well on the Linux machine! Although it worked very well
+on my Atari and it now assembles a small programm in the examples
+directory (This small C64 'pack' packs files into a kind of archive,
+saving the long names (long compared to DOS/TOS ;-). With this
+I saved the C64 stuff and restored them with the real names on my
+Linux box. In the misc dir you find a Linux 'uncpk' command to 
+unpack the stuff on Unixes). 
+However, the error and other messages have been changed to english.
+ 
+To compile it, go to the 'src' subdir and type 'make'. This 
+should do it. The binary is compiled to the main directory.
+If you need more memory for labels or defines etc, change the definitions
+in xah.h. (static allocation is faster and on the atari it was somehow
+better, can no longer remember why...)
+
+If you want to edit the sources, don't worry about the '^M', they
+are from my Atari which uses CR and LF as newline, whereas Linux uses
+only LF. I changed xa to read Atari files even on Unix (with '^M').
+
+The docs are in the 'doc' subdir. If you think some things could be 
+expressed in a better way, feel free and mail me to improve my english ;-)
+
+For the Atari ST I also have a GEM-shell, that provides a much more 
+comfortable user interface than command line. 
+A binary version for the Atari ST ('xa.ttp') is included, as I don't know if 
+you have a C compiler, as this is not that usual as with Linux.
+ 
+Don't ask me anything about Atari, because some time ago it ended its hard
+life.... Now I use Linux :-))
+
+For further information:
+
+         Andre Fachat
+         email (prefered): fachat@galileo.rhein-neckar.de
+         snail-mail:       Stadlerstr. 17
+                           D-09126 Chemnitz
+                           Germany
+
+
