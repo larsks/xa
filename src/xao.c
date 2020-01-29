@@ -41,7 +41,7 @@ void set_fopt(int l, signed char *buf, int reallen) {
 	  afile->fo.mlist +=5;
 	  afile->fo.olist = realloc(afile->fo.olist, afile->fo.mlist*sizeof(Fopt));
 	  if(!afile->fo.olist) {	
-	    fprintf(stderr, "Fatal: Couldn't alloc memory (%ld bytes) for fopt list!\n",
+	    fprintf(stderr, "Fatal: Couldn't alloc memory (%d bytes) for fopt list!\n",
 						afile->fo.mlist*sizeof(Fopt));
 	    exit(1);
 	  }

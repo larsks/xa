@@ -55,7 +55,7 @@ int crossref = 0;
 /* local variables */
 
 static const char *copyright={
-"Cross-Assembler 65xx V2.1.4g 25nov1998 (c) 1989-98 by A.Fachat\n"};
+"Cross-Assembler 65xx V2.1.4h 12dec1998 (c) 1989-98 by A.Fachat\n"};
 
 static char out[MAXLINE];
 static time_t tim1,tim2;

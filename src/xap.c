@@ -329,7 +329,8 @@ int pp_define(char *k)
                if(j<memfre)
                {
                     strncpy(mem,t+i,j);
-                    mem+=j+1;
+                    mem+=j;
+		    *mem++='\0';
                     memfre-=j+1;
                }
                i+=j;

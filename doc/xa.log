@@ -139,3 +139,11 @@ Add cross reference list to labels if switched on on command line.
 Fix the filename when multiple files are given on the command line
 (used to give the first filename for all errors in the second pass...)
 
+******** xa-2.1.4h ******** 12dec1998 a.fachat
+
+In file65 added support for undefined labels and globals, also for 
+(some known) file options.
+
+Fix a preprocessor bug.
+
+

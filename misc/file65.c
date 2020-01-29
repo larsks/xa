@@ -39,7 +39,7 @@ int romoff = 0;
 int labels = 0;
 
 void usage(void) {
-	printf("list65: prints file information on 'o65' files\n"
+	printf("file65: prints file information on 'o65' files\n"
 		"  file65 [options] [filenames...]\n"
 		"options:\n"
 		"  -v        = print version number\n"
@@ -213,9 +213,9 @@ int read_options(FILE *fp) {
 
 int print_labels(FILE *fp, int offset) {
 	int i, nud, c, seg, off;
-
-/* printf("print_labels:offset=%d\n",offset); */
-
+/*
+printf("print_labels:offset=%d\n",offset);
+*/
 	fseek(fp, offset, SEEK_CUR);
 
 	nud = (fgetc(fp) & 0xff);
