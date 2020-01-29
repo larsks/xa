@@ -315,10 +315,11 @@ int pp_define(char *k)
      liste[rl].s_len=i;
      liste[rl].p_anz=0;
 
-/*
-     printf("define:%s\nlen1=%d\n",liste[rl].search,liste[rl].s_len);
+
+/*   printf("define:%s\nlen1=%d\n",liste[rl].search,liste[rl].s_len);
      getchar();
-*/ 
+*/
+
      if(t[i]=='(')
      {
           while(t[i]!=')' && t[i]!='\0')
@@ -329,7 +330,8 @@ int pp_define(char *k)
                if(j<memfre)
                {
                     strncpy(mem,t+i,j);
-                    mem+=j+1;
+                    mem+=j;
+                    *mem++='\0';
                     memfre-=j+1;
                }
                i+=j;
@@ -695,7 +697,7 @@ int pp_open(char *name)
 {
      FILE *fp;
 
-     fp=xfopen(name,"r");
+     fp=xfopen(name,"rt");
 		
      strcpy(flist[0].fname,name);
      flist[0].fline=0;

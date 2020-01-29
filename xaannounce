@@ -40,10 +40,10 @@ About another 6502 file format, see note 1).
 As reference assembler to produce this kind of code, I have implemented
 the file format in my 6502 cross assembler "xa65".
 From version 2.1.1 it supports the new file format standard, and from 
-version 2.1.2a (i.e. current), it comes with the "file65", "reloc65" and
+version 2.1.2a, it comes with the "file65", "reloc65" and
 "ld65" utilities to print information about a file, relocate a file
 and link several object files together resp.
-The all programs are close to production stage (you never know if you
+All the programs are close to production stage (you never know if you
 got all bugs...), while the linker is in beta stage. Esp. I want to know
 about options you would like to have.
 
@@ -60,6 +60,8 @@ Other changes from earlier versions:
 - supports more MASM pseudo opcodes (but still not the important ones
   that I have my C-like preprocessor for: .if, .macro, .include.
   This might change someday...
+
+- DOS support by go32 cross-compiling (only Makefile changes!)
 
 General description:
 

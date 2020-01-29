@@ -92,12 +92,14 @@ typedef struct {
 				 in romable mode */
 #define	  E_ILLALIGN -30      /* illegal align value */
 
-#define	  W_ADRRELOC	-31	/* word relocation in byte value */
-#define	  W_BYTRELOC	-32	/* byte relocation in word value */
-#define	  E_WPOINTER 	-33     /* illegal pointer arithmetic!   */
-#define	  W_ADDRACC	-34	/* addr access to low or high byte pointer */
-#define	  W_HIGHACC	-35	/* high byte access to low byte pointer */
-#define	  W_LOWACC	-36	/* low byte access to high byte pointer */
+#define	  W_ADRRELOC	-32	/* word relocation in byte value */
+#define	  W_BYTRELOC	-33	/* byte relocation in word value */
+#define	  E_WPOINTER 	-34     /* illegal pointer arithmetic!   */
+#define	  W_ADDRACC	-35	/* addr access to low or high byte pointer */
+#define	  W_HIGHACC	-36	/* high byte access to low byte pointer */
+#define	  W_LOWACC	-37	/* low byte access to high byte pointer */
+
+#define   E_65816   -31
 
 #define   T_VALUE   -1
 #define   T_LABEL   -2 
@@ -125,6 +127,8 @@ typedef struct {
 #define   A_LOW     0x2000
 #define   A_MASK    0xe000	/* reloc type mask */
 #define   A_FMASK   0x0f00	/* segment type mask */
+
+#define   A_LONG    0xc000
 
 #define	  FM_OBJ    0x1000
 #define   FM_SIZE   0x2000

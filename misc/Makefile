@@ -1,12 +1,12 @@
 
 XCBMLIB = ..
 
-CFLAGS = # -g -pedantic -Wall -W -ansi
+CFLAGS = 
 
 LIBS = -lncurses -ltermcap -lm
 
 
-all: ../uncpk ../printcbm ../file65 ../mkrom.sh ../reloc65 ../ld65 lt
+all: ../uncpk ../printcbm ../file65 ../mkrom.sh ../reloc65 ../ld65
 
 ../uncpk: uncpk.c
 	${CC} ${CFLAGS} uncpk.c -o $(XCBMLIB)/uncpk

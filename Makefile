@@ -1,15 +1,21 @@
 
+# Unix gcc or DOS go32 cross-compiling gcc
+#
 CC=gcc
-CFLAGS=-W -Wall -pedantic -ansi
 LD=gcc
+CFLAGS=-W -Wall -pedantic -ansi
+# CC=gcc-go32
+# LD=gcc-go32
+# CFLAGS=-W -Wall -pedantic 
 
+# Other cc
 #CC=cc
 #CFLAGS=
-#LD=cc
+#LD=ld
 
 INSTALLDIR=/usr/local
 
-all: xa uncpk load
+all: xa uncpk
 
 xa:
 	(cd src; LD=${LD} CC="${CC} ${CFLAGS}" ${MAKE}; )
@@ -20,11 +26,16 @@ load:
 uncpk:
 	(cd misc; CC="${CC} ${CFLAGS}" ${MAKE}; )
 
+dos: clean
+	(cd src; LD=gcc-go32 CC="gcc-go32 -W -Wall -pedantic" ${MAKE}; )
+	(cd misc; CC="gcc-go32 -W -Wall -pedantic" ${MAKE}; )
+	rm -f xa file65 ld65 uncpk printcbm reloc65 mkrom.sh src/*.o
+
 clean:
 	(cd src; ${MAKE} clean )
 	(cd loader; ${MAKE} clean )
 	(cd misc; ${MAKE} mrproper )
-	rm -f xa
+	rm -f xa *.exe
 
 install: xa uncpk
 	for i in xa reloc65 ld65 file65 printcbm uncpk; 	\

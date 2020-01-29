@@ -6,9 +6,10 @@ for any damage caused by it or by any use of it.
 
 The package contains the source code for the Cross assembler 'xa', several
 utilities in the 'misc' subdirectory, as well as example programs and
-the rest of this directory tree.
+the rest of this directory tree. As of release 2.1.4f a gcc-go32 DOS
+cross-compiling make option is included.
 
-The current version for 'xa' is 2.1.3, as of 25mar1997
+The current version for 'xa' is 2.1.4f, as of 03mar1998
 
 The whole package is placed under the GNU Public License, for further
 information on redistribution see the included file "COPYING".
@@ -31,6 +32,7 @@ XA is a 6502 cross compiler:
 
  - Rockwell CMOS opcodes
 
+ - running under DOS and any ANSI C system (Unix, Amiga, Atari ST)
 
 I developed this cross assembler for the 6502 CPU family quite some time
 ago on my Atari ST. The assembler has successfully been ported to Amiga 
@@ -52,6 +54,11 @@ binary loader.
 "file65" prints file information on 'o65' relocatable files. "reloc65"
 can relocate 'o65' files.
 
+If you want to use it under DOS, you have to have the GO32 DOS crosscompiling
+tools to compile. Then just type "make dos" and you'll end up with the
+appropriate DOS binaries. This has been tested only under i386 Linux, however. 
+Another archive with the DOS binaries included is provided.
+
 One problem on the Atari was it's broken "malloc". Therefore I used to
 alloc everything in one chunk and divide the memory by hand. So everything
 was kind of statically allocated. This is almost gone now. Only the
@@ -66,9 +73,6 @@ expressed in a better way, feel free and mail me to improve my english ;-)
 For further information:
 
          Andre Fachat
-         email (prefered): a.fachat@physik.tu-chemnitz.de
-         snail-mail:       Stadlerstr. 17
-                           D-09126 Chemnitz
-                           Germany
+         email: a.fachat@physik.tu-chemnitz.de
 
 

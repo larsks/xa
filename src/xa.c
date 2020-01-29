@@ -43,7 +43,7 @@
 
 /* exported globals */
 
-int ncmos,cmosfl;
+int ncmos,cmosfl,w65816,n65816;
 int masm = 0;
 int nolink = 0;
 int romable = 0;
@@ -54,7 +54,8 @@ int showblk = 0;
 /* local variables */
 
 static const char *copyright={
-"Cross-Assembler 65xx V2.1.4e 26jan1998 (c) 1989-98 by A.Fachat\n"};
+"Cross-Assembler 65xx V2.1.4f 20apr1998 (c) 1989-98 by A.Fachat\n"
+"65816 opcodes and modes coded by Jolse Maginnis\n"};
 
 static char out[MAXLINE];
 static time_t tim1,tim2;
@@ -78,6 +79,8 @@ static long ga_p1(void);
 static long gm_p1(void);
 
 /* text */
+
+int memode,xmode;
 int segment;
 int tlen=0, tbase=0x1000;
 int dlen=0, dbase=0x0400;
@@ -112,7 +115,9 @@ int main(int argc,char *argv[])
      tim1=time(NULL);
      
      ncmos=0;
+     n65816=0;
      cmosfl=1;
+     w65816=1;
 
      ifiles = malloc(mifiles*sizeof(char*));
 
@@ -179,6 +184,9 @@ int main(int argc,char *argv[])
 	  case 'C':
 		cmosfl = 0;
 		break;
+          case 'W':
+                w65816 = 0;
+                break;
 	  case 'B':
 		showblk = 1;
 		break;
@@ -352,6 +360,8 @@ int main(int argc,char *argv[])
 		   sprintf(out,"Warning: zero segment ($%04x) start address doesn't align to %d!\n", zbase, align);
 		   logout(out);
 	       }
+               if (n65816>0)
+                   fmode |= 0x8000;
 	       switch(align) {
 		case 1: break;
 		case 2: fmode |= 1; break;
@@ -517,6 +527,8 @@ static int pass2(void)
      signed char *dataseg=NULL;
      signed char *datap=NULL;
 
+     memode=0;
+     xmode=0;
      if((dataseg=malloc(dlen))) {
        if(!dataseg) {
 	 fprintf(stderr, "Couldn't alloc dataseg memory...\n");
@@ -595,6 +607,8 @@ static int pass1(void)
      signed char o[MAXLINE];
      int l,er, al;
 
+     memode=0;
+     xmode=0;
      tlen=0;
      ner=0;
      while(!(er=getline(s)))
@@ -659,6 +673,7 @@ static void usage(void)
 	    " -v          = verbose output\n"
 	    " -x          = old filename behaviour (overrides -o, -e, -l)\n"
             " -C          = no CMOS-opcodes\n"
+            " -W          = no 65816-opcodes\n"
             " -B          = show lines with block open/close\n"
             " -c          = produce o65 object instead of executable files (i.e. do not link)\n"
 	    " -o filename = sets output filename, default is 'a.o65'\n"
@@ -683,7 +698,7 @@ static void usage(void)
 	);
 }
 
-#define   ANZERR    30
+#define   ANZERR    31
 #define   ANZWARN   6
 
 /*
@@ -710,6 +725,7 @@ static char *ertxt[] = { "Syntax","Label defined",
 	  "File header option too long",
 	  "File Option not at file start (when ROM-able)",
 	  "Illegal align value",
+          "65816 code used",
 	  /* warnings start here */	
 	  "Cutting word relocation in byte value",
 	  "Byte relocation in word value",
