@@ -1,7 +1,7 @@
 
 /*
     xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ static int do_op(int*,int,int);
 int a_term(signed char *s, int *v, int *l, int xpc, int *pfl, int *label, int f)
 {
      int er=E_OK;
-     int afl;
+     int afl = 0, bfl;
 
      *pfl = 0;
      fundef = f;
@@ -57,22 +57,38 @@ int a_term(signed char *s, int *v, int *l, int xpc, int *pfl, int *label, int f)
      {
           pp++;
           er=ag_term(s,P_START,v,&afl, label);
-	  if(afl) *pfl=A_LOW | (afl<<8);
+	  bfl = afl & (A_MASK>>8);
+	  if( bfl && (bfl != (A_ADR>>8)) && (bfl != (A_LOW>>8)) ) {
+/*fprintf(stderr,"low byte relocation for a high byte - won't work!\n");*/
+	    errout(W_LOWACC);
+	  }
+	  if(afl) *pfl=A_LOW | ((afl<<8) & A_FMASK);
           *v = *v & 255;
      } else
      if(s[0]=='>')
      {    
           pp++;
           er=ag_term(s,P_START,v,&afl, label);
-	  if(afl) *pfl=A_HIGH | (afl<<8) | (*v & 255);
+	  bfl = afl & (A_MASK>>8);
+	  if( bfl && (bfl != (A_ADR>>8)) && (bfl != (A_HIGH>>8)) ) {
+/*fprintf(stderr,"high byte relocation for a low byte - won't work!\n");*/
+	    errout(W_HIGHACC);
+	  }
+	  if(afl) *pfl=A_HIGH | ((afl<<8) & A_FMASK) | (*v & 255);
           *v=(*v>>8)&255;
      }
      else {
           er=ag_term(s,P_START,v,&afl, label);
-	  if(afl) *pfl = A_ADR | (afl<<8);
+	  bfl = afl & (A_MASK>>8);
+	  if(bfl && (bfl != (A_ADR>>8)) ) {
+/*fprintf(stderr,"address relocation for a low or high byte - won't work!\n");*/
+	    errout(W_ADDRACC);
+	  }
+	  if(afl) *pfl = A_ADR | ((afl<<8) & A_FMASK);
      }
 
      *l=pp;
+/* printf("a_term: afl->%04x *pfl=%04x, (pc=%04x)\n",afl,*pfl, xpc); */
      return(er);
 }
 
@@ -103,8 +119,8 @@ static int ag_term(signed char *s, int p, int *v, int *nafl, int *label)
      if(s[pp]==T_LABEL)
      {
           er=l_get(cval(s+pp+1),v, &afl);
-/*printf("label: er=%d, seg=%d, afl=%d, nolink=%d, fundef=%d\n", 
-			er, segment, afl, nolink, fundef);*/
+/* printf("label: er=%d, seg=%d, afl=%d, nolink=%d, fundef=%d\n", 
+			er, segment, afl, nolink, fundef); */
 	  if(er==E_NODEF && segment != SEG_ABS && fundef ) {
 	    if( nolink || (afl==SEG_UNDEF)) {
 	      er = E_OK;
@@ -120,6 +136,7 @@ static int ag_term(signed char *s, int p, int *v, int *nafl, int *label)
      {
           *v=cval(s+pp+1);
           pp+=3;
+/* printf("value: v=%04x\n",*v); */
      }
      else
      if(s[pp]==T_POINTER)
@@ -127,6 +144,7 @@ static int ag_term(signed char *s, int p, int *v, int *nafl, int *label)
 	  afl = s[pp+1];
           *v=cval(s+pp+2);
           pp+=4;
+/* printf("pointer: v=%04x, afl=%04x\n",*v,afl); */
      }
      else
      if(s[pp]=='*')

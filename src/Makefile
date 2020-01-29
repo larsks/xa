@@ -1,7 +1,7 @@
 
 OBJ = xa.o xaa.o xal.o xap.o xat.o xar.o xar2.o xao.o xau.o xam.o
 
-#CFLAGS=-W -Wall -pedantic -ansi  #-g
+# CFLAGS=-W -Wall -pedantic -ansi  #-g
 
 LD=${CC}
 

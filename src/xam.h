@@ -21,7 +21,11 @@
 
 
 extern FILE *xfopen(const char *fn,const char *mode);
+/*
 extern int m_init(void);
 extern void m_exit(void);
 extern int m_alloc(long n, char **adr);
+*/
+
+extern void reg_include(char*);
 

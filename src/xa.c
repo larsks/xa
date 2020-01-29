@@ -1,7 +1,7 @@
 
 /*
     xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <time.h>
 
 /* structs and defs */
@@ -53,7 +54,7 @@ int showblk = 0;
 /* local variables */
 
 static const char *copyright={
-"Cross-Assembler 65xx V2.1.4 10aug1997 (c) 1989-97 by A.Fachat\n"};
+"Cross-Assembler 65xx V2.1.4e 26jan1998 (c) 1989-98 by A.Fachat\n"};
 
 static char out[MAXLINE];
 static time_t tim1,tim2;
@@ -183,6 +184,13 @@ int main(int argc,char *argv[])
 		break;
 	  case 'x':		/* old filename behaviour */
 		oldfile = 1;
+		break;
+	  case 'I':
+		if(argv[i][2]==0) {
+		  reg_include(argv[++i]);
+		} else {
+		  reg_include(argv[i]+2);
+		}
 		break;
 	  case 'o':
 		if(argv[i][2]==0) {
@@ -344,7 +352,13 @@ int main(int argc,char *argv[])
 		   sprintf(out,"Warning: zero segment ($%04x) start address doesn't align to %d!\n", zbase, align);
 		   logout(out);
 	       }
-
+	       switch(align) {
+		case 1: break;
+		case 2: fmode |= 1; break;
+		case 4: fmode |= 2; break;
+		case 256: fmode |=3; break;
+	       }
+	       
 	       if((!er) && relmode) 
 			h_write(fpout, fmode, tlen, dlen, blen, zlen, 0);
 
@@ -662,6 +676,7 @@ static void usage(void)
 	    "               Other segments have to be take care of with -b?\n"
  	    " -G          = suppress list of exported globals\n"
 	    " -DDEF=TEXT  = defines a preprocessor replacement\n"
+	    " -Idir      = add directory 'dir' to include path (before XAINPUT)\n"
             "Environment:\n"
             " XAINPUT = include file path; components divided by ','\n"
             " XAOUTPUT= output file path\n"
@@ -669,7 +684,7 @@ static void usage(void)
 }
 
 #define   ANZERR    30
-#define   ANZWARN   3
+#define   ANZWARN   6
 
 /*
 static char *ertxt[] = { "Syntax","Label definiert",
@@ -698,7 +713,10 @@ static char *ertxt[] = { "Syntax","Label defined",
 	  /* warnings start here */	
 	  "Cutting word relocation in byte value",
 	  "Byte relocation in word value",
-	  "Illegal pointer arithmetic" };
+	  "Illegal pointer arithmetic",
+	  "Address access to low or high byte pointer",
+	  "High byte access to low byte pointer",
+	  "Low byte access to high byte pointer" };
 
 static int gl;
 static int gf;  

@@ -1,7 +1,7 @@
 
 /*
     xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,11 +112,11 @@ int rd_write(FILE *fp, int pc) {
 	    fputc(pc2-pc, fp);
 	    pc=pc2;
 	    fputc((afl>>8)&255, fp);
-	    if((afl&A_MASK)==A_HIGH) fputc(afl&255,fp);
             if((afile->rd.rlist[p].afl&A_FMASK)==(SEG_UNDEF<<8)) {
                 fputc(afile->rd.rlist[p].lab & 255, fp);
                 fputc((afile->rd.rlist[p].lab>>8) & 255, fp);
             }
+	    if((afl&A_MASK)==A_HIGH) fputc(afl&255,fp);
 	  }
 	  p=afile->rd.rlist[p].next;
 	}

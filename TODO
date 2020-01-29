@@ -1,0 +1,6 @@
+
+- nm65 that prints labels from o65 files
+
+- -L option for ld65, such that globals can be suppressed but KERNEL can be
+  kept
+

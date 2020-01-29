@@ -1,7 +1,7 @@
 
 /*
     xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,8 +22,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "xah.h"         /*   structs        */
+
+static int ninc = 0;
+static char **nip = NULL;
  
+void reg_include(char *path) {
+	char **nip2;
+	if(path && *path) {
+	  nip2 = realloc(nip,sizeof(char*)*(ninc+1));
+	  if(nip2) {
+	    nip = nip2;
+	    nip[ninc++] = path;
+	  } else {
+	    fprintf(stderr,"Warning: couldn' alloc mem (reg_include)\n");
+	  }
+	}
+}
 
 FILE *xfopen(const char *fn,const char *mode)
 {
@@ -31,15 +47,32 @@ FILE *xfopen(const char *fn,const char *mode)
 	char c,*cp,n[MAXLINE],path[MAXLINE];
 	char xname[MAXLINE], n2[MAXLINE];
 	int i,l=(int)strlen(fn);
+
+	if(l>=MAXLINE) {
+	  fprintf(stderr,"filename '%s' too long!\n",fn);
+	  return NULL;
+	}
+
 	for(i=0;i<l+1;i++) {
 	  xname[i]=((fn[i]=='\\')?DIRCHAR:fn[i]);
 	}
 
 	if(mode[0]=='r')
 	{
-		if((file=fopen(fn,mode))==NULL 
-		   && (file=fopen(xname, mode))==NULL
-	  	   && (cp=getenv("XAINPUT"))!=NULL)
+	    if((file=fopen(fn,mode))==NULL 
+			&& (file=fopen(xname, mode))==NULL) {
+		for(i=0;(!file) && (i<ninc);i++) {
+		  strcpy(n,nip[i]);
+		  c=n[(int)strlen(n)-1];
+		  if(c!=DIRCHAR) strcat(n,DIRCSTRING);
+		  strcpy(n2,n);
+		  strcat(n2,xname);
+		  strcat(n,fn);
+/* printf("name=%s,n2=%s,mode=%s\n",n,n2,mode); */
+		  file=fopen(n,mode);
+		  if(!file) file=fopen(n2,mode);
+		}
+		if((!file) && (cp=getenv("XAINPUT"))!=NULL)
 		{
 			strcpy(path,cp);
 			cp=strtok(path,",");
@@ -54,13 +87,14 @@ FILE *xfopen(const char *fn,const char *mode)
 					strcpy(n2,n);
 					strcat(n2,xname);
 					strcat(n,fn);
-/*		printf("name=%s\nmode=%s\n",n,mode);*/
+/* printf("name=%s,n2=%s,mode=%s\n",n,n2,mode); */
 					file=fopen(n,mode);
 					if(!file) file=fopen(n2,mode);
 				}
 				cp=strtok(NULL,",");
 			}
 		}
+	    }
 	} else
 	{
 		if((cp=getenv("XAOUTPUT"))!=NULL)

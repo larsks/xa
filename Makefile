@@ -7,6 +7,8 @@ LD=gcc
 #CFLAGS=
 #LD=cc
 
+INSTALLDIR=/usr/local
+
 all: xa uncpk load
 
 xa:
@@ -24,4 +26,8 @@ clean:
 	(cd misc; ${MAKE} mrproper )
 	rm -f xa
 
+install: xa uncpk
+	for i in xa reloc65 ld65 file65 printcbm uncpk; 	\
+	  do cp $$i ${INSTALLDIR}/bin; 				\
+	done
 

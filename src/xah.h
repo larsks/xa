@@ -95,6 +95,9 @@ typedef struct {
 #define	  W_ADRRELOC	-31	/* word relocation in byte value */
 #define	  W_BYTRELOC	-32	/* byte relocation in word value */
 #define	  E_WPOINTER 	-33     /* illegal pointer arithmetic!   */
+#define	  W_ADDRACC	-34	/* addr access to low or high byte pointer */
+#define	  W_HIGHACC	-35	/* high byte access to low byte pointer */
+#define	  W_LOWACC	-36	/* low byte access to high byte pointer */
 
 #define   T_VALUE   -1
 #define   T_LABEL   -2 

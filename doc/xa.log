@@ -110,9 +110,23 @@ Fixed a bug where .dsb in a data segment didn't fill with the right value
 Added preprocessor continuation lines, and .block and .bend pseudo-opcodes
 (They map to .( and .) resp.)
 
-******** xa-2.1.4a ******** 11sep1997 a.fachat
+******** xa-2.1.4 ******** 11sep1997 a.fachat
 
 Do not leave output file around after an error - this is better for "make".
 Also it seems to have settled for a while, so I can release a new version.
-Converted most of the docs into html format.
+
+******** xa-2.1.4c ******** 30dec1997 a.fachat
+
+Fixed a nasty bug that prevented correct relocation table entries when
+a "label2=label1" contruct was used and "label2" was accessed.
+Added "-I" option.
+ 
+******** xa-2.1.4d ******** 26jan1998 a.fachat
+
+fixed align code. Now inserts NOP opcodes into text segment, and sets
+file mode appropriately.
+
+******** xa-2.1.4e ******** 26jan1998 a.fachat
+
+Changed o65 fileformat and adopted it in xa.
 

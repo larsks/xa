@@ -1,7 +1,7 @@
 
 /*
     xa65 - 6502 cross assembler and utility suite
-    Copyright (C) 1989-1997 André Fachat (a.fachat@physik.tu-chemnitz.de)
+    Copyright (C) 1989-1998 André Fachat (a.fachat@physik.tu-chemnitz.de)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -218,11 +218,13 @@ int t_p1(signed char *s, signed char *t, int *ll, int *al)
      bl=0;
      *al = 0;
 
+/*     printf("\n"); */
+
      er=t_conv(s,t,&l,pc[segment],&nk,&na1,&na2,0);
 
      *ll=l;
 /*
-     printf("t_conv:");
+     printf("t_conv (er=%d):",er);
      for(i=0;i<l;i++)
           printf("%02x,",t[i]);
      printf("\n");
@@ -355,15 +357,20 @@ printf(" wrote %02x %02x %02x %02x %02x %02x\n",
 	    int tmp;
 	    if(segment!=SEG_ABS) {
               if(!(er=a_term(t+1,&tmp,&l,pc[segment],&afl,&label,0))) {
-		if(tmp == 2 || tmp == 4 || tmp == 256) {
+		if(tmp == 1 || tmp == 2 || tmp == 4 || tmp == 256) {
 		  set_align(tmp);
-		  if(pc[segment] & (tmp-1)) {
+		  if(pc[segment] & (tmp-1)) { /* not aligned */
+		    int tmp2;
 		    t[0]=Kdsb;
 		    i=1;
 		    bl=tmp=(tmp - (pc[segment] & (tmp-1))) & (tmp-1);
 		    wval(i,tmp);
+                    t[i++]=',';
+		    tmp2= 0xea;
+		    wval(i,tmp2);	/* nop opcode */
                     t[i++]=T_END;
-		    *ll=5;
+		    *ll=9;
+		    er=E_OKDEF;
 		  } else {
 		    *ll=0;	/* ignore if aligned right */
 		  }
@@ -684,7 +691,7 @@ int t_p2(signed char *t, int *ll, int fl, int *al)
                     sy=1;
                     if(!(er=a_term(t+i,vv,&l,pc[segment],&afl,&label,1)))
                     {
-/*if(pc[segment]==0xf0dc) printf("a_term returns afl=%04x\n",afl);*/
+/* if(1) printf("a_term returns afl=%04x\n",afl); */
 
 			 rlt[0] = afl;
 			 lab[0] = label;

@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 
-                               XA 2.1.4
+                               XA 2.1.4c
 
                         65(c)02 Cross Assembler
 
@@ -86,6 +86,8 @@ Label:  this is the label list
 '-B'		Show lines with '.(' or '.)' pseudo opcodes
 '-Llabel'	defines 'label' as absolute, undefined reference
 '-DDEF=TEXT'	define a preprocessor replacement
+'-Ipath'	additional include path for include files. Is evaluated before
+		the XAINPUT environment variable.
 
 Omitting the errorfile or labelfile Parameter will cause xa to not
 write these files. Using '-x' will cause xa to take the name of the
